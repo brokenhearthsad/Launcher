@@ -7,6 +7,7 @@ import { useAsync } from "../hooks/useAsync";
 import { useMonitoring } from "../hooks/Monitoring";
 import { fmt, formatDuration, Meter, NO_DATA } from "../components/metrics";
 import { Flag } from "./SteamDota";
+import { gameClock, GsiBadge, liveStatus } from "../components/gsi";
 import { useUiSettings } from "../hooks/UiSettings";
 import { formatDate } from "../lib/format";
 
@@ -27,7 +28,9 @@ export default function Dashboard() {
   const health = useAsync(api.health, [], refreshMs);
   const proc = useAsync(api.process, [], refreshMs);
   const settings = useAsync(api.settings, []);
-  const { metrics: m, environment: env } = useMonitoring();
+  const { metrics: m, environment: env, gsi } = useMonitoring();
+  const gsiNow = liveStatus(gsi, Date.now() / 1000);
+  const game = gsiNow.status === "stale" ? null : gsi?.snapshot ?? null;
   const slots = useAsync(api.slots, [], refreshMs);
   const bound = slots.data?.find((x) => x.binding === "local_client");
   const problems = useAsync(() => api.logs({ level: ["WARNING", "ERROR", "CRITICAL"], page_size: 5 }), [], refreshMs);
@@ -55,6 +58,18 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <Link to="/game" className="mt-4 block rounded-xl border border-surface-border bg-surface/80 p-4 hover:border-gray-500" data-testid="overview-game">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-wide text-gray-400">Состояние игры (GSI)</div>
+          <GsiBadge status={gsiNow.status} />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <span>Фаза: {game?.game_state_label ?? <span className="text-gray-500">{NO_DATA}</span>}</span>
+          <span>Время: {gameClock(game?.clock_time) ?? <span className="text-gray-500">{NO_DATA}</span>}</span>
+          <span>Герой: {game?.hero_name ? `${game.hero_name}${game.hero_level !== null ? `, ур. ${game.hero_level}` : ""}` : <span className="text-gray-500">{NO_DATA}</span>}</span>
+          <span>Счёт: {game && game.radiant_score !== null && game.dire_score !== null ? <><span className="text-radiant">{game.radiant_score}</span>:<span className="text-dire">{game.dire_score}</span></> : <span className="text-gray-500">{NO_DATA}</span>}</span>
+        </div>
+      </Link>
       {!h && health.loading && <Spinner />}
       {h && (
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="dashboard-stats">

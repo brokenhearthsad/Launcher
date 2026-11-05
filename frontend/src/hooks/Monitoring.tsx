@@ -1,7 +1,7 @@
 // Shared live data: machine metrics + Steam/Dota environment (one WebSocket for the whole app).
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { EnvironmentState, Metrics, SeriesPoint } from "../api/types";
+import type { EnvironmentState, GsiState, Metrics, SeriesPoint } from "../api/types";
 import { useLiveEvent } from "./LiveEvents";
 
 const MAX_POINTS = 450; // ~15 minutes at the 2 s interval
@@ -12,9 +12,10 @@ interface MonitoringValue {
   environment: EnvironmentState | null;
   error: ApiError | null;
   setEnvironment: (e: EnvironmentState) => void;
+  gsi: GsiState | null;
 }
 
-const Ctx = createContext<MonitoringValue>({ metrics: null, series: [], environment: null, error: null, setEnvironment: () => {} });
+const Ctx = createContext<MonitoringValue>({ metrics: null, series: [], environment: null, error: null, setEnvironment: () => {}, gsi: null });
 
 export function toPoint(m: Metrics): SeriesPoint {
   const g = m.gpu.available ? m.gpu : null;
@@ -30,12 +31,14 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
   const [series, setSeries] = useState<SeriesPoint[]>([]);
   const [environment, setEnvironment] = useState<EnvironmentState | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [gsi, setGsi] = useState<GsiState | null>(null);
 
   useEffect(() => {
     let alive = true;
     api.metrics().then((m) => alive && setMetrics(m)).catch((e) => alive && setError(e as ApiError));
     api.recent().then((r) => alive && setSeries(r.points.slice(-MAX_POINTS))).catch(() => {});
     api.environment().then((e) => alive && setEnvironment(e)).catch((e) => alive && setError(e as ApiError));
+    api.gsiState().then((g) => alive && setGsi(g)).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -46,8 +49,9 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
     setError(null);
   });
   useLiveEvent(["environment_updated"], (m) => setEnvironment(m.data as EnvironmentState));
+  useLiveEvent(["gsi_updated"], (m) => setGsi(m.data as GsiState));
 
-  return <Ctx.Provider value={{ metrics, series, environment, error, setEnvironment }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ metrics, series, environment, error, setEnvironment, gsi }}>{children}</Ctx.Provider>;
 }
 
 export function useMonitoring(): MonitoringValue {

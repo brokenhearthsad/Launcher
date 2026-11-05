@@ -181,3 +181,47 @@ export interface Slot {
   updated_at: string;
   observed?: { steam_pid: number | null; dota_pid: number | null; signed_in: boolean | null };
 }
+
+// ----------------------------------------------------------------------------- Phase 3 (GSI)
+export interface GsiAbility { slot: string; name: string | null; level: number | null; can_cast: boolean | null; passive: boolean | null;
+  active: boolean | null; cooldown: number | null; ultimate: boolean | null }
+export interface GsiItem { slot: string; name: string | null; charges: number | null; cooldown: number | null; can_cast: boolean | null }
+
+export interface GsiSnapshot {
+  provider_name: string | null; provider_version: number | null;
+  has_map: boolean; map_name: string | null; match_id: string | null; game_mode: string | null; custom_game_name: string | null;
+  game_state: string | null; game_state_label: string | null; game_time: number | null; clock_time: number | null;
+  daytime: boolean | null; paused: boolean | null; win_team: string | null; radiant_score: number | null; dire_score: number | null;
+  has_player: boolean; activity: string | null; team: string | null; kills: number | null; deaths: number | null; assists: number | null;
+  last_hits: number | null; denies: number | null; gold: number | null; gpm: number | null; xpm: number | null;
+  has_hero: boolean; hero_internal: string | null; hero_name: string | null; hero_level: number | null; alive: boolean | null;
+  respawn_seconds: number | null; health: number | null; max_health: number | null; mana: number | null; max_mana: number | null;
+  abilities: GsiAbility[]; items: GsiItem[]; problems: string[];
+}
+
+export type GsiStatus = "waiting" | "live" | "delayed" | "stale";
+
+export interface GsiState {
+  status: GsiStatus; freshness: "never" | "fresh" | "delayed" | "stale"; dota_running: boolean | null;
+  last_update: number | null; age_seconds: number | null; stale_after_seconds: number; updates: number; format_errors: number;
+  rejected: number; in_match: boolean; snapshot: GsiSnapshot | null; match: Record<string, unknown> | null;
+}
+
+export interface GsiPlan { action: "create" | "update" | "none" | "replace_foreign"; plan_id: string; creates_directory: boolean;
+  backup_before_change: boolean; current_content: string | null; new_content: string }
+
+export interface GsiBackup { name: string; size: number; created: string; managed: boolean }
+
+export interface GsiConfig {
+  cfg_name: string; error: string | null; available: boolean; installed: boolean; backups: GsiBackup[];
+  launch_option: { checked: boolean; found: boolean | null; accounts: number };
+  file?: string; dir_exists?: boolean; exists?: boolean; up_to_date?: boolean; managed?: boolean; valid?: boolean | null;
+  uri?: string | null; token_matches?: boolean | null; expected_uri?: string; other_configs?: string[]; plan: GsiPlan | null;
+}
+
+export interface GsiMatchRow {
+  id: number; match_id: string | null; started_at: string; ended_at: string | null; map_name: string | null; hero: string | null;
+  hero_name: string | null; team: string | null; result: string; win_team: string | null; game_time: number | null; max_level: number | null;
+  radiant_score: number | null; dire_score: number | null; kills: number | null; deaths: number | null; assists: number | null;
+  last_hits: number | null; denies: number | null; gpm: number | null; xpm: number | null; updates: number;
+}

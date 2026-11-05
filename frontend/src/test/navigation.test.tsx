@@ -11,13 +11,13 @@ describe("navigation", () => {
     mockFetch(routes());
     renderWithProviders(<Layout><AppRoutes /></Layout>);
     const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-    expect(NAV.map((n) => n.label)).toEqual(["Обзор", "Система", "Steam и Dota 2", "10 слотов", "Логи", "Настройки"]);
+    expect(NAV.map((n) => n.label)).toEqual(["Обзор", "Система", "Steam и Dota 2", "Состояние игры", "10 слотов", "Логи", "Настройки"]);
     for (const item of NAV) expect(nav).toHaveTextContent(item.label);
     expect(nav).not.toHaveTextContent("Players");
   });
 
   it.each([["Логи", "Логи"], ["Настройки", "Настройки"], ["Обзор", "Обзор"], ["Система", "Система"],
-    ["Steam и Dota 2", "Steam и Dota 2"], ["10 слотов", "10 слотов"]])("navigates to %s", async (link, heading) => {
+    ["Steam и Dota 2", "Steam и Dota 2"], ["10 слотов", "10 слотов"], ["Состояние игры", "Состояние игры"]])("navigates to %s", async (link, heading) => {
     mockFetch(routes());
     renderWithProviders(<MonitoringProvider><Layout><AppRoutes /></Layout></MonitoringProvider>, "/logs");
     fireEvent.click(screen.getByRole("link", { name: link }));

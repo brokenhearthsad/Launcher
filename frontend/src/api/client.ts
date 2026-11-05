@@ -1,6 +1,6 @@
 // Thin typed HTTP client for the backend REST API.
 import type {
-  EnvironmentState, EventItem, Health, HistoryPoint, LogEntry, Metrics, Page, ProcessUsage, RuntimeSettings, SeriesPoint,
+  EnvironmentState, EventItem, GsiConfig, GsiMatchRow, GsiState, Health, HistoryPoint, LogEntry, Metrics, Page, ProcessUsage, RuntimeSettings, SeriesPoint,
   SettingsResponse, Slot,
 } from "./types";
 
@@ -58,10 +58,13 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
   return data as T;
 }
 
+// Required by file-changing endpoints: a custom header cannot be sent cross-site without CORS approval.
+const GUARD = { "X-Launcher-Request": "1" };
+
 export const api = {
   health: () => request<Health>("GET", "/api/health"),
   process: () => request<ProcessUsage>("GET", "/api/system/process"),
-  shutdown: () => request<{ status: string }>("POST", "/api/system/shutdown", undefined, undefined, { "X-Launcher-Request": "1" }),
+  shutdown: () => request<{ status: string }>("POST", "/api/system/shutdown", undefined, undefined, GUARD),
 
   metrics: () => request<Metrics>("GET", "/api/monitoring/current"),
   recent: (seconds = 900) => request<{ points: SeriesPoint[] }>("GET", "/api/monitoring/recent", undefined, { seconds }),
@@ -74,6 +77,15 @@ export const api = {
   slots: () => request<Slot[]>("GET", "/api/slots"),
   updateSlot: (id: number, data: Partial<Pick<Slot, "name" | "note" | "binding">>) => request<Slot>("PUT", `/api/slots/${id}`, data),
   slotHistory: (id: number, q?: Query) => request<Page<EventItem>>("GET", `/api/slots/${id}/history`, undefined, q),
+
+  gsiState: () => request<GsiState>("GET", "/api/gsi/state"),
+  gsiMatches: (q?: Query) => request<Page<GsiMatchRow>>("GET", "/api/gsi/matches", undefined, q),
+  gsiConfig: () => request<GsiConfig>("GET", "/api/gsi/config"),
+  gsiInstall: (plan_id: string) =>
+    request<{ changed: boolean; backup: string | null; check: GsiConfig }>("POST", "/api/gsi/install", { plan_id, confirm: true }, undefined, GUARD),
+  gsiUninstall: () => request<{ removed: boolean; backup: string; check: GsiConfig }>("POST", "/api/gsi/uninstall", { confirm: true }, undefined, GUARD),
+  gsiRestore: (name: string) =>
+    request<{ restored: string; backup: string | null; check: GsiConfig }>("POST", "/api/gsi/restore", { name, confirm: true }, undefined, GUARD),
 
   logs: (q?: Query) => request<Page<LogEntry>>("GET", "/api/logs", undefined, q),
   logComponents: () => request<string[]>("GET", "/api/logs/components"),

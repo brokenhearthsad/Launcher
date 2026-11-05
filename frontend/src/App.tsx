@@ -4,6 +4,7 @@ import { LiveEventsProvider } from "./hooks/LiveEvents";
 import { UiSettingsProvider } from "./hooks/UiSettings";
 import { MonitoringProvider } from "./hooks/Monitoring";
 import Dashboard from "./pages/Dashboard";
+import GameState from "./pages/GameState";
 import Slots from "./pages/Slots";
 import SteamDota from "./pages/SteamDota";
 import SystemPage from "./pages/System";
@@ -16,6 +17,7 @@ export function AppRoutes() {
       <Route path="/" element={<Dashboard />} />
       <Route path="/system" element={<SystemPage />} />
       <Route path="/steam" element={<SteamDota />} />
+      <Route path="/game" element={<GameState />} />
       <Route path="/slots" element={<Slots />} />
       <Route path="/logs" element={<Logs />} />
       <Route path="/settings" element={<SettingsPage />} />

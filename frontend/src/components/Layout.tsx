@@ -1,4 +1,4 @@
-import { Activity, Cpu, FileText, Gamepad2, Grid3x3, LayoutDashboard, Menu, MonitorCog, Settings, X } from "lucide-react";
+import { Activity, Cpu, FileText, Gamepad2, Grid3x3, LayoutDashboard, Menu, MonitorCog, Radio, Settings, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useLive } from "../hooks/LiveEvents";
@@ -8,6 +8,7 @@ export const NAV = [
   { to: "/", label: "Обзор", icon: LayoutDashboard },
   { to: "/system", label: "Система", icon: MonitorCog },
   { to: "/steam", label: "Steam и Dota 2", icon: Gamepad2 },
+  { to: "/game", label: "Состояние игры", icon: Radio },
   { to: "/slots", label: "10 слотов", icon: Grid3x3 },
   { to: "/logs", label: "Логи", icon: FileText },
   { to: "/settings", label: "Настройки", icon: Settings },
