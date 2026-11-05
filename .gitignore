@@ -21,3 +21,4 @@ frontend/playwright-report/
 *.db
 *.db-wal
 *.db-shm
+frontend/tsconfig.tsbuildinfo
