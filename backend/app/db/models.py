@@ -135,7 +135,8 @@ class GsiMatch(Base):
     hero: Mapped[str | None] = mapped_column(String(64))
     hero_name: Mapped[str | None] = mapped_column(String(64))
     team: Mapped[str | None] = mapped_column(String(16))
-    result: Mapped[str] = mapped_column(String(16), default="in_progress")  # in_progress | win | loss | ended | left
+    # in_progress | win | loss | ended | left | interrupted
+    result: Mapped[str] = mapped_column(String(16), default="in_progress")
     win_team: Mapped[str | None] = mapped_column(String(16))
     game_time: Mapped[float | None] = mapped_column(Float)
     max_level: Mapped[int | None] = mapped_column(Integer)

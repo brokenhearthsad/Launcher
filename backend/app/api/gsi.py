@@ -35,7 +35,7 @@ def gsi_state(state: State) -> dict:
 
 @router.get("/api/gsi/matches")
 def gsi_matches(db: DB, page: PageQ = 1, page_size: PageSizeQ = 20,
-                result: str | None = Query(None, pattern="^(in_progress|win|loss|ended|left)$")) -> dict:
+                result: str | None = Query(None, pattern="^(in_progress|win|loss|ended|left|interrupted)$")) -> dict:
     conds = [GsiMatch.result == result] if result else []
     total = db.scalar(select(func.count()).select_from(GsiMatch).where(*conds)) or 0
     rows = db.scalars(select(GsiMatch).where(*conds).order_by(GsiMatch.id.desc())

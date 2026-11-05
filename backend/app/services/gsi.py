@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 
 from app.db.models import AppSetting, GsiMatch
 from app.db.session import session_scope
@@ -65,6 +65,7 @@ class GsiService:
         self.match: dict[str, Any] | None = None  # in-memory aggregate of the current match
         self._match_flushed = 0.0
         self._last_publish = 0.0
+        self._trailing_pending = False
         self._last_error_event = -ERROR_EVENT_INTERVAL
         self._suppressed_errors = 0
         self._last_reject_log = 0.0
@@ -101,6 +102,8 @@ class GsiService:
             if snap.problems:
                 await self._format_error("; ".join(snap.problems[:5]), count_only=True)
             await self._handle_events(evs, snap)
+            if any(e.type == "game_started" for e in evs):
+                await asyncio.to_thread(self._flush_match)  # make the new match visible right away
             if self.match is not None and time.monotonic() - self._match_flushed > MATCH_FLUSH:
                 await asyncio.to_thread(self._flush_match)
             self._publish()
@@ -215,6 +218,8 @@ class GsiService:
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.state.runtime.gsi_retention_days)
         with session_scope() as db:
             db.execute(delete(GsiMatch).where(GsiMatch.started_at < cutoff))
+            # Matches left open by a previous run: the outcome is unknown, do not pretend otherwise.
+            db.execute(update(GsiMatch).where(GsiMatch.result == "in_progress").values(result="interrupted"))
 
     async def shutdown(self) -> None:
         async with self._lock:
@@ -247,10 +252,23 @@ class GsiService:
         }
 
     def _publish(self, force: bool = False) -> None:
+        """Throttled push; a suppressed update is delivered at the end of the window (trailing edge)."""
         if self.state.bus.subscriber_count == 0:
             return
         now = time.monotonic()
-        if not force and now - self._last_publish < 1.0 / max(0.1, self.state.runtime.ws_publish_hz):
+        window = 1.0 / max(0.1, self.state.runtime.ws_publish_hz)
+        wait = window - (now - self._last_publish)
+        if not force and wait > 0:
+            if not self._trailing_pending:
+                self._trailing_pending = True
+                try:
+                    asyncio.get_running_loop().call_later(wait, self._trailing)
+                except RuntimeError:  # no loop (sync caller): next update will publish
+                    self._trailing_pending = False
             return
         self._last_publish = now
         self.state.bus.publish("gsi_updated", self.view())
+
+    def _trailing(self) -> None:
+        self._trailing_pending = False
+        self._publish(force=True)

@@ -150,3 +150,31 @@ def test_token_persists_across_restarts(tmp_path):
         first = c.app.state.lab.gsi.token
     with TestClient(create_app(s)) as c:
         assert c.app.state.lab.gsi.token == first
+
+
+def test_last_update_is_always_delivered(client):
+    """Throttling must not swallow the final state of a burst (trailing publish)."""
+    with client.websocket_connect("/ws/events") as ws:
+        ws.receive_json()
+        for name in ("menu", "hero_selection", "playing"):
+            post(client, name)
+        last = None
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            msg = ws.receive_json()
+            if msg["type"] == "gsi_updated":
+                last = msg["data"]
+                if last["snapshot"] and last["snapshot"]["hero_name"] == "Anti-Mage":
+                    break
+        assert last is not None and last["snapshot"]["hero_name"] == "Anti-Mage"
+
+
+def test_new_match_is_visible_immediately_and_dangling_matches_are_closed(tmp_path):
+    s = make_settings(tmp_path)
+    with TestClient(create_app(s)) as c:
+        post(c, "playing")
+        m = c.get("/api/gsi/matches").json()["items"][0]
+        assert m["result"] == "in_progress" and m["hero_name"] == "Anti-Mage" and m["game_time"] == 754
+    with TestClient(create_app(s)) as c:  # restart during the match
+        m = c.get("/api/gsi/matches").json()["items"][0]
+        assert m["result"] == "interrupted"
