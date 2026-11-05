@@ -12,7 +12,7 @@ from app.config import Settings
 from app.schemas import RuntimeSettings
 from app.services.event_bus import EventBus
 
-VERSION = "2.0.0-phase1"
+VERSION = "2.0.0-phase2"
 
 
 @dataclass
@@ -24,6 +24,9 @@ class LabState:
     last_backup: Path | None = None
     # Set by ``python -m app`` so the shutdown endpoint can stop uvicorn gracefully.
     server: Any = None
+    # Phase 2 services (created in the lifespan; None when monitoring is disabled).
+    monitor: Any = None
+    environment: Any = None
 
 
 def get_state(request: Request) -> LabState:

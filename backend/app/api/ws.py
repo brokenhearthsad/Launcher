@@ -19,6 +19,8 @@ async def events(ws: WebSocket) -> None:
     state = ws.app.state.lab
     await ws.accept()
     sid, queue = state.bus.subscribe()
+    if state.monitor is not None:
+        state.monitor.wake()  # switch to the fast interval right away
     await ws.send_json({"type": "hello", "session_id": None, "data": {"version": VERSION}})
 
     async def reader() -> None:

@@ -20,6 +20,7 @@ def make_settings(tmp_path: Path, **overrides) -> Settings:
         allowed_hosts=["localhost", "127.0.0.1", "testserver"],
         api_rate_limit_per_minute=100_000,
         log_level="INFO",
+        monitoring_enabled=False,  # tests that need the loop enable it explicitly
     )
     values.update(overrides)
     return Settings(**values)

@@ -14,7 +14,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import health, logs, settings, system, ws
+from app.api import health, logs, monitoring, settings, system, ws
 from app.api.frontend import mount_frontend
 from app.api.ratelimit import RateLimitMiddleware
 from app.config import Settings, get_settings
@@ -22,6 +22,7 @@ from app.db.models import SystemLog
 from app.db.session import init_engine, run_migrations, session_scope
 from app.errors import AppError
 from app.logging_config import get_db_handler, get_logger, install_db_handler, setup_logging
+from app.monitoring.service import MonitorService
 from app.platform.process_info import lower_own_priority
 from app.services import settings_service
 from app.services.event_bus import EventBus
@@ -60,9 +61,14 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI):
         if backup is not None:
             log.info("pre-migration database backup kept at %s", backup)
+        if cfg.monitoring_enabled:
+            state.monitor = MonitorService(state)
+            state.monitor.start()
         log.info("Launcher v%s started on http://localhost:%d", VERSION, cfg.port)
         yield
         log.info("Launcher shutting down")
+        if state.monitor is not None:
+            await state.monitor.stop()
         handler = get_db_handler()
         if handler is not None:
             handler.flush()
@@ -98,7 +104,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         state.bus.publish("system_error", {"component": "api", "message": f"{type(exc).__name__}: {exc}"})
         return _error(500, "internal_error", "internal server error")
 
-    for r in (health, system, logs, settings):
+    for r in (health, system, monitoring, logs, settings):
         app.include_router(r.router)
     app.include_router(ws.router)
     mount_frontend(app, cfg.frontend_dist)  # must be last: catch-all route
