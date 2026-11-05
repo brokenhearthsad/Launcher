@@ -22,3 +22,4 @@ frontend/playwright-report/
 *.db-wal
 *.db-shm
 frontend/tsconfig.tsbuildinfo
+frontend/e2e/.tmp/
