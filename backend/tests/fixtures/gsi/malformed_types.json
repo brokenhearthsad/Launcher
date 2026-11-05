@@ -1,0 +1,7 @@
+{"provider": "not-an-object",
+ "map": {"game_state": "DOTA_GAMERULES_STATE_GAME_IN_PROGRESS", "game_time": "late", "radiant_score": true,
+         "paused": "maybe"},
+ "hero": {"name": "npc_dota_hero_zuus", "level": "eleven", "health": 500.5, "max_health": 900},
+ "abilities": ["not", "an", "object"],
+ "items": {"slot0": "item_blink"},
+ "auth": {"token": "TEST-TOKEN"}}

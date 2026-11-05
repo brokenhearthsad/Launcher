@@ -1,0 +1,9 @@
+{"provider": {"name": "Dota 2", "appid": 570, "version": 47, "timestamp": 1762340100},
+ "map": {"name": "start", "matchid": "9000000001", "game_time": 5, "clock_time": 0, "daytime": true,
+         "game_state": "DOTA_GAMERULES_STATE_HERO_SELECTION", "paused": false, "win_team": "none",
+         "customgamename": "", "radiant_score": 0, "dire_score": 0},
+ "player": {"steamid": "76561190000000000", "accountid": "123", "name": "SHOULD-NOT-BE-STORED", "activity": "playing",
+            "team_name": "radiant", "kills": 0, "deaths": 0, "assists": 0, "last_hits": 0, "denies": 0,
+            "gold": 600, "gpm": 0, "xpm": 0},
+ "hero": {"id": -1},
+ "auth": {"token": "TEST-TOKEN"}}
