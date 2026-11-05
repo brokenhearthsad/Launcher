@@ -27,8 +27,13 @@ class EventBus:
         self._queue_size = queue_size
         self.published = 0
         self.dropped = 0
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def subscribe(self) -> tuple[int, asyncio.Queue[dict[str, Any]]]:
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:  # subscribed from sync code (tests): deliver directly
+            pass
         sid = next(self._ids)
         q: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self._queue_size)
         self._subs[sid] = q
@@ -49,6 +54,19 @@ class EventBus:
         msg = {"type": event_type, "session_id": session_id, "data": data,
                "ts": datetime.now(timezone.utc).isoformat()}
         self.published += 1
+        if not self._subs:
+            return
+        # Thread-safe: worker threads (sync endpoints, monitor reads) hand over to the loop.
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if self._loop is not None and running is not self._loop:
+            self._loop.call_soon_threadsafe(self._deliver, msg)
+        else:
+            self._deliver(msg)
+
+    def _deliver(self, msg: dict[str, Any]) -> None:
         for q in list(self._subs.values()):
             if q.full():
                 try:

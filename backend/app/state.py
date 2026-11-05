@@ -27,6 +27,7 @@ class LabState:
     # Phase 2 services (created in the lifespan; None when monitoring is disabled).
     monitor: Any = None
     environment: Any = None
+    slots: Any = None
 
 
 def get_state(request: Request) -> LabState:

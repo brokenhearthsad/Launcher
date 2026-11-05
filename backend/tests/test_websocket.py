@@ -28,3 +28,19 @@ def test_event_bus_drops_oldest_when_full():
     assert first["data"]["i"] == 4
     with pytest.raises(ValueError):
         bus.publish("not_an_event", {})
+
+
+def test_publish_from_worker_thread_is_delivered(client):
+    """Sync endpoints run in a threadpool; their events must still reach WebSocket clients."""
+    with client.websocket_connect("/ws/events") as ws:
+        ws.receive_json()  # hello
+        import threading
+
+        t = threading.Thread(target=lambda: client.app.state.lab.bus.publish("system_error", {"m": "from thread"}))
+        t.start()
+        t.join()
+        while True:
+            msg = ws.receive_json()
+            if msg["type"] == "system_error":
+                assert msg["data"]["m"] == "from thread"
+                break

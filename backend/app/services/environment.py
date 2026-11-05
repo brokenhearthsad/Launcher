@@ -59,7 +59,7 @@ class EnvironmentService:
             snap = self.snapshot()
             if changes:
                 for fn in self.listeners:
-                    fn(snap)
+                    await asyncio.to_thread(fn, snap)
             if changes or self.state.bus.subscriber_count > 0:
                 self.state.bus.publish("environment_updated", snap)
 
