@@ -12,7 +12,7 @@ from app.config import Settings
 from app.schemas import RuntimeSettings
 from app.services.event_bus import EventBus
 
-VERSION = "2.0.0-phase2"
+VERSION = "2.0.0-phase3"
 
 
 @dataclass
@@ -28,6 +28,7 @@ class LabState:
     monitor: Any = None
     environment: Any = None
     slots: Any = None
+    gsi: Any = None
 
 
 def get_state(request: Request) -> LabState:

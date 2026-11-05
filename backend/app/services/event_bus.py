@@ -17,7 +17,7 @@ log = get_logger("ws")
 
 # Phase 1 infrastructure events; later phases register their own types here.
 EVENT_TYPES = ("system_error", "settings_updated", "shutdown", "metrics_updated", "environment_updated",
-               "slot_updated", "event_created")
+               "slot_updated", "event_created", "gsi_updated")
 
 
 class EventBus:

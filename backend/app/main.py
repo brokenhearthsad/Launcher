@@ -14,7 +14,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import environment, health, logs, monitoring, settings, slots, system, ws
+from app.api import environment, gsi, health, logs, monitoring, settings, slots, system, ws
 from app.api.frontend import mount_frontend
 from app.api.ratelimit import RateLimitMiddleware
 from app.config import Settings, get_settings
@@ -27,6 +27,7 @@ from app.platform.process_info import lower_own_priority
 from app.services import settings_service
 from app.services.environment import EnvironmentService
 from app.services.event_bus import EventBus
+from app.services.gsi import GsiService
 from app.services.slots import SlotService
 from app.state import VERSION, LabState
 
@@ -66,15 +67,18 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         state.environment = EnvironmentService(state)
         state.slots = SlotService(state)
         state.environment.listeners.append(state.slots.observe)
+        state.gsi = GsiService(state)
         if cfg.monitoring_enabled:
             state.monitor = MonitorService(state)
             state.monitor.add_job("environment", state.environment.interval, state.environment.poll)
+            state.monitor.add_job("gsi-watchdog", state.gsi.interval, state.gsi.watchdog)
             state.monitor.start()
         log.info("Launcher v%s started on http://localhost:%d", VERSION, cfg.port)
         yield
         log.info("Launcher shutting down")
         if state.monitor is not None:
             await state.monitor.stop()
+        await state.gsi.shutdown()
         handler = get_db_handler()
         if handler is not None:
             handler.flush()
@@ -110,7 +114,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         state.bus.publish("system_error", {"component": "api", "message": f"{type(exc).__name__}: {exc}"})
         return _error(500, "internal_error", "internal server error")
 
-    for r in (health, system, monitoring, environment, slots, logs, settings):
+    for r in (health, system, monitoring, environment, slots, gsi, logs, settings):
         app.include_router(r.router)
     app.include_router(ws.router)
     mount_frontend(app, cfg.frontend_dist)  # must be last: catch-all route

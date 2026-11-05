@@ -1,6 +1,7 @@
 """SQLAlchemy ORM models.
 
 Infrastructure: ``system_logs``, ``app_settings``.
+Phase 3: ``gsi_matches`` (one aggregated row per observed match).
 Phase 2: ``client_slots`` (10 logical slots), ``events`` (process / slot /
 monitoring history) and ``resource_samples`` (per-minute aggregates).
 """
@@ -118,3 +119,33 @@ class ResourceSample(Base):
     net_tx_kbps_avg: Mapped[float | None] = mapped_column(Float)
     disk_read_kbps_avg: Mapped[float | None] = mapped_column(Float)
     disk_write_kbps_avg: Mapped[float | None] = mapped_column(Float)
+
+
+class GsiMatch(Base):
+    """One observed match, aggregated from GSI updates (never one row per update)."""
+
+    __tablename__ = "gsi_matches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    match_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    last_update_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    map_name: Mapped[str | None] = mapped_column(String(64))
+    hero: Mapped[str | None] = mapped_column(String(64))
+    hero_name: Mapped[str | None] = mapped_column(String(64))
+    team: Mapped[str | None] = mapped_column(String(16))
+    result: Mapped[str] = mapped_column(String(16), default="in_progress")  # in_progress | win | loss | ended | left
+    win_team: Mapped[str | None] = mapped_column(String(16))
+    game_time: Mapped[float | None] = mapped_column(Float)
+    max_level: Mapped[int | None] = mapped_column(Integer)
+    radiant_score: Mapped[int | None] = mapped_column(Integer)
+    dire_score: Mapped[int | None] = mapped_column(Integer)
+    kills: Mapped[int | None] = mapped_column(Integer)
+    deaths: Mapped[int | None] = mapped_column(Integer)
+    assists: Mapped[int | None] = mapped_column(Integer)
+    last_hits: Mapped[int | None] = mapped_column(Integer)
+    denies: Mapped[int | None] = mapped_column(Integer)
+    gpm: Mapped[int | None] = mapped_column(Integer)
+    xpm: Mapped[int | None] = mapped_column(Integer)
+    updates: Mapped[int] = mapped_column(Integer, default=0)

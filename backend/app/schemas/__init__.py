@@ -44,6 +44,9 @@ class RuntimeSettings(BaseModel):
     lhm_enabled: bool = False
     lhm_url: str = Field("http://127.0.0.1:8085/data.json", max_length=200, pattern=r"^http://(127\.0\.0\.1|localhost)(:\d+)?/")
     metrics_retention_days: int = Field(14, ge=1, le=365)
+    # GSI: data older than this is "stale" (Dota 2 sends a heartbeat every 30 s even in menus).
+    gsi_stale_seconds: int = Field(40, ge=10, le=600)
+    gsi_retention_days: int = Field(90, ge=1, le=3650)
 
 
 class RuntimeSettingsUpdate(BaseModel):
@@ -57,6 +60,8 @@ class RuntimeSettingsUpdate(BaseModel):
     lhm_enabled: bool | None = None
     lhm_url: str | None = Field(None, max_length=200, pattern=r"^http://(127\.0\.0\.1|localhost)(:\d+)?/")
     metrics_retention_days: int | None = Field(None, ge=1, le=365)
+    gsi_stale_seconds: int | None = Field(None, ge=10, le=600)
+    gsi_retention_days: int | None = Field(None, ge=1, le=3650)
 
 
 class PurgeRequest(BaseModel):

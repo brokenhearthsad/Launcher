@@ -46,7 +46,7 @@ def test_upgrade_from_v1_makes_backup_and_keeps_infrastructure(tmp_path):
 
     with TestClient(create_app(s)) as c:
         backups = list(s.backup_dir.glob("*.db"))
-        assert len(backups) == 1 and "pre-0003" in backups[0].name
+        assert len(backups) == 1 and "pre-0004" in backups[0].name
         # backup still contains the old simulator data
         old = sqlite3.connect(backups[0])
         assert old.execute("SELECT name FROM players").fetchone() == ("Radiant 1",)
@@ -57,7 +57,7 @@ def test_upgrade_from_v1_makes_backup_and_keeps_infrastructure(tmp_path):
         assert {"system_logs", "app_settings", "alembic_version"} <= tables
         assert any(log["message"] == "kept log" for log in c.get("/api/logs", params={"page_size": 200}).json()["items"])
         assert c.get("/api/settings").json()["database"]["last_backup"].endswith(backups[0].name)
-    assert pending_migrations(s.database_url) == ("0003", "0003")
+    assert pending_migrations(s.database_url) == ("0004", "0004")
 
     # second start: nothing to migrate, no new backup
     with TestClient(create_app(s)):
@@ -107,7 +107,7 @@ def test_upgrade_from_phase1_backs_up_and_seeds_ten_slots(tmp_path):
     con.close()
     with TestClient(create_app(s)):
         pass
-    backups = list(s.backup_dir.glob("*pre-0003*.db"))
+    backups = list(s.backup_dir.glob("*pre-0004*.db"))
     assert len(backups) == 1
     con = sqlite3.connect(db_path)
     try:
@@ -116,5 +116,28 @@ def test_upgrade_from_phase1_backs_up_and_seeds_ten_slots(tmp_path):
         assert slots[0] == (1, "Slot 1", "radiant", "none") and slots[9][2] == "dire"
         assert con.execute("SELECT count(*) FROM system_logs WHERE message='phase1 log'").fetchone() == (1,)
         assert {"events", "resource_samples"} <= _tables(db_path)
+    finally:
+        con.close()
+
+
+def test_upgrade_from_phase2_keeps_slots_and_adds_gsi_matches(tmp_path):
+    from alembic import command
+    from app.db.session import _alembic_config
+
+    s = make_settings(tmp_path)
+    init_engine(s.database_url)
+    command.upgrade(_alembic_config(s.database_url), "0003")
+    db_path = s.database_url.removeprefix("sqlite:///")
+    con = sqlite3.connect(db_path)
+    con.execute("UPDATE client_slots SET name='Мой ПК', binding='local_client' WHERE id=1")
+    con.commit()
+    con.close()
+    with TestClient(create_app(s)):
+        pass
+    assert len(list(s.backup_dir.glob("*pre-0004*.db"))) == 1
+    con = sqlite3.connect(db_path)
+    try:
+        assert con.execute("SELECT name, binding FROM client_slots WHERE id=1").fetchone() == ("Мой ПК", "local_client")
+        assert "gsi_matches" in _tables(db_path)
     finally:
         con.close()
