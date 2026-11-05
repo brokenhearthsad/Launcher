@@ -29,6 +29,7 @@ class LabState:
     environment: Any = None
     slots: Any = None
     gsi: Any = None
+    gsi_installer: Any = None
 
 
 def get_state(request: Request) -> LabState:

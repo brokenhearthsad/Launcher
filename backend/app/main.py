@@ -28,6 +28,7 @@ from app.services import settings_service
 from app.services.environment import EnvironmentService
 from app.services.event_bus import EventBus
 from app.services.gsi import GsiService
+from app.services.gsi_installer import GsiInstaller
 from app.services.slots import SlotService
 from app.state import VERSION, LabState
 
@@ -68,6 +69,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         state.slots = SlotService(state)
         state.environment.listeners.append(state.slots.observe)
         state.gsi = GsiService(state)
+        state.gsi_installer = GsiInstaller(state)
         if cfg.monitoring_enabled:
             state.monitor = MonitorService(state)
             state.monitor.add_job("environment", state.environment.interval, state.environment.poll)
