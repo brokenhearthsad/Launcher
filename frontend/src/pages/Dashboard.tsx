@@ -1,117 +1,91 @@
-import { AlertOctagon, Clock, Gamepad2, Radio, Trophy, Users } from "lucide-react";
-import { Bar as RBar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, Clock, Cpu, Database, HardDrive, MemoryStick, Server } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatCard, StatusBadge, TeamBadge } from "../components/ui";
-import { useLiveEvent } from "../hooks/LiveEvents";
+import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatCard, Table, cx } from "../components/ui";
+import { useLive } from "../hooks/LiveEvents";
 import { useAsync } from "../hooks/useAsync";
 import { useUiSettings } from "../hooks/UiSettings";
-import { formatDuration, formatGameTime, titleCase } from "../lib/format";
+import { formatDate } from "../lib/format";
+
+// Targets agreed for the Launcher itself (see PROJECT_AUDIT.md).
+const RAM_TARGET_MB = 150;
+const CPU_TARGET = 1;
+
+export function formatUptime(seconds: number): string {
+  const s = Math.floor(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h ? `${h} ч ${m} мин` : m ? `${m} мин ${s % 60} с` : `${s} с`;
+}
 
 export default function Dashboard() {
   const { refreshMs } = useUiSettings();
+  const { state: wsState } = useLive();
   const health = useAsync(api.health, [], refreshMs);
-  const overview = useAsync(api.overview, [], refreshMs);
-  const active = useAsync(() => api.sessions({ page_size: 10 }), [], refreshMs);
-  const recent = useAsync(() => api.analyticsSessions(), []);
-  useLiveEvent(["session_started", "session_finished", "session_paused", "session_resumed", "player_updated"], () => {
-    void overview.reload();
-    void active.reload();
-    void recent.reload();
-  });
+  const proc = useAsync(api.process, [], refreshMs);
+  const settings = useAsync(api.settings, []);
+  const problems = useAsync(() => api.logs({ level: ["WARNING", "ERROR", "CRITICAL"], page_size: 5 }), [], refreshMs);
 
-  const o = overview.data;
-  const activeSessions = (active.data?.items ?? []).filter((s) => s.status === "running" || s.status === "paused");
-  const durations = (recent.data ?? []).slice(-12).map((s) => ({ name: `#${s.session_id}`, minutes: s.duration_minutes }));
-
+  const h = health.data;
+  const p = proc.data;
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="System status and key indicators of the test lab." />
-      <ErrorBanner error={health.error ?? overview.error} onRetry={() => { void health.reload(); void overview.reload(); }} />
-      {!o && overview.loading && <Spinner />}
-      {o && (
-        <>
-          <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-6" data-testid="dashboard-stats">
-            <StatCard label="System" value={health.data?.status === "ok" ? "Online" : health.data ? "Degraded" : "—"}
-              tone={health.data?.status === "ok" ? "radiant" : "danger"}
-              hint={health.data ? `v${health.data.version} · DB ${health.data.database}` : undefined} icon={<Gamepad2 className="h-4 w-4" />} />
-            <StatCard label="Participants" value={o.players.total}
-              hint={`${o.players.by_team.radiant ?? 0} Radiant · ${o.players.by_team.dire ?? 0} Dire`} icon={<Users className="h-4 w-4" />} />
-            <StatCard label="Active sessions" value={o.sessions.active} tone="accent" icon={<Radio className="h-4 w-4" />}
-              hint={`${o.sessions.total} sessions total`} />
-            <StatCard label="Finished matches" value={o.matches.finished}
-              hint={`Radiant ${o.matches.radiant_wins} · Dire ${o.matches.dire_wins}`} icon={<Trophy className="h-4 w-4" />} />
-            <StatCard label="Avg duration" value={formatDuration(o.matches.avg_duration_seconds)} icon={<Clock className="h-4 w-4" />}
-              hint={o.matches.avg_total_kills !== null ? `${o.matches.avg_total_kills} kills / match` : "no finished matches"} />
-            <StatCard label="Errors" value={o.errors} tone={o.errors ? "danger" : "default"} icon={<AlertOctagon className="h-4 w-4" />}
-              hint={<Link className="underline" to="/logs">open logs</Link>} />
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-3">
-            <Card title="Active sessions" className="lg:col-span-2">
-              {activeSessions.length === 0 ? (
-                <Empty>No session is running. <Link className="text-accent underline" to="/match-control">Create one in Match Control</Link>.</Empty>
-              ) : (
-                <ul className="divide-y divide-surface-border">
-                  {activeSessions.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between py-3">
-                      <div>
-                        <div className="font-medium">#{s.id} {s.name}</div>
-                        <div className="text-xs text-gray-500">{titleCase(s.scenario)} · {titleCase(s.game_mode)} · x{s.speed}</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <StatusBadge status={s.status} />
-                        <Link to={`/live/${s.id}`} className="text-sm text-accent hover:underline">Watch live →</Link>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card title="Last match">
-              {o.last_match ? (
-                <div className="space-y-2 text-sm">
-                  <div className="font-medium">#{o.last_match.id} {o.last_match.name}</div>
-                  <div className="flex items-center gap-2"><StatusBadge status={o.last_match.status} />
-                    {o.last_match.winner ? <><span className="text-gray-400">Winner</span><TeamBadge team={o.last_match.winner} /></> : <span className="text-gray-500">no winner</span>}
-                  </div>
-                  <div className="text-3xl font-bold">
-                    <span className="text-radiant">{o.last_match.radiant_score}</span>
-                    <span className="mx-2 text-gray-600">:</span>
-                    <span className="text-dire">{o.last_match.dire_score}</span>
-                  </div>
-                  <div className="text-gray-400">Duration {formatGameTime(o.last_match.duration_seconds)} · {titleCase(o.last_match.win_condition ?? "—")}</div>
-                </div>
-              ) : <Empty>No matches yet.</Empty>}
-            </Card>
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-3">
-            <Card title="Participant status">
-              <ul className="space-y-2 text-sm">
-                {Object.entries(o.players.by_status).map(([st, n]) => (
-                  <li key={st} className="flex items-center justify-between"><StatusBadge status={st} /><span className="font-mono">{n}</span></li>
-                ))}
-              </ul>
-            </Card>
-            <Card title="Recent match durations (min)" className="lg:col-span-2">
-              {durations.length === 0 ? <Empty>Finish a match to see durations.</Empty> : (
-                <div className="h-56">
-                  <ResponsiveContainer>
-                    <BarChart data={durations} maxBarSize={56}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#273248" />
-                      <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
-                      <YAxis stroke="#9ca3af" fontSize={12} />
-                      <Tooltip contentStyle={{ background: "#111827", border: "1px solid #273248" }} />
-                      <RBar dataKey="minutes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
-          </div>
-        </>
+      <PageHeader title="Обзор" subtitle="Состояние Launcher. Мониторинг Steam, Dota 2 и ресурсов ПК добавляется на следующих этапах." />
+      <ErrorBanner error={health.error ?? proc.error} onRetry={() => { void health.reload(); void proc.reload(); }} />
+      {!h && health.loading && <Spinner />}
+      {h && (
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="dashboard-stats">
+          <StatCard label="Launcher" value={h.status === "ok" ? "Работает" : "Проблема"} tone={h.status === "ok" ? "radiant" : "danger"}
+            hint={`v${h.version} · БД: ${h.database === "ok" ? "OK" : "недоступна"}`} icon={<Server className="h-4 w-4" />} />
+          <StatCard label="ОЗУ процесса" value={p ? `${p.private_mb} МБ` : "—"} tone={p && p.private_mb > RAM_TARGET_MB ? "danger" : "default"}
+            hint={`цель < ${RAM_TARGET_MB} МБ · RSS ${p?.rss_mb ?? "—"} МБ`} icon={<MemoryStick className="h-4 w-4" />} />
+          <StatCard label="CPU процесса" value={p ? `${p.cpu_percent.toFixed(2)} %` : "—"} tone={p && p.cpu_percent > CPU_TARGET ? "accent" : "default"}
+            hint={`цель < ${CPU_TARGET} % · потоков ${p?.threads ?? "—"}`} icon={<Cpu className="h-4 w-4" />} />
+          <StatCard label="Время работы" value={formatUptime(h.uptime_seconds)} icon={<Clock className="h-4 w-4" />}
+            hint={`дочерних процессов: ${p?.child_processes ?? "—"}`} />
+        </div>
       )}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card title="Компоненты" icon={<HardDrive className="h-4 w-4" />}>
+          <ul className="space-y-2 text-sm" data-testid="components">
+            <Row label="Сервер (FastAPI, один процесс Python)" ok={h?.status === "ok"} value={h ? `PID ${p?.pid ?? "—"} · Python ${p?.python ?? "—"}` : "—"} />
+            <Row label="База данных SQLite" ok={h?.database === "ok"} value={settings.data?.database.path ?? "—"} />
+            <Row label="Интерфейс (production-сборка)" ok={h?.frontend_built} value={h?.frontend_built ? "frontend/dist" : "не собран"} />
+            <Row label="Канал обновлений (WebSocket)" ok={wsState === "open"} value={wsState === "open" ? "подключён" : "переподключение"} />
+            <Row label="Резервная копия перед миграцией" ok={!!settings.data?.database.last_backup}
+              value={settings.data?.database.last_backup ?? "не требовалась при этом запуске"} neutral={!settings.data?.database.last_backup} />
+          </ul>
+        </Card>
+        <Card title="Последние предупреждения и ошибки" icon={<AlertTriangle className="h-4 w-4" />}
+          actions={<Link className="text-xs text-accent hover:underline" to="/logs">все логи →</Link>}>
+          {!problems.data ? <Spinner /> : problems.data.items.length === 0 ? <Empty>Предупреждений нет.</Empty> : (
+            <Table head={["Время", "Уровень", "Компонент", "Сообщение"]}>
+              {problems.data.items.map((l) => (
+                <tr key={l.id}>
+                  <td className="whitespace-nowrap px-3 py-1.5 text-xs text-gray-400">{formatDate(l.timestamp)}</td>
+                  <td className={cx("px-3 py-1.5 font-mono text-xs", l.level === "WARNING" ? "text-amber-300" : "text-red-400")}>{l.level}</td>
+                  <td className="px-3 py-1.5 text-xs">{l.component}</td>
+                  <td className="px-3 py-1.5 font-mono text-xs">{l.message}</td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+      </div>
+      <p className="mt-6 flex items-center gap-2 text-xs text-gray-500"><Database className="h-3.5 w-3.5" />
+        Показатели обновляются каждые {refreshMs / 1000} с (меняется в настройках). Launcher не изменяет приоритеты других программ.</p>
     </div>
+  );
+}
+
+function Row({ label, ok, value, neutral }: { label: string; ok: boolean | undefined; value: string; neutral?: boolean }) {
+  return (
+    <li className="flex items-start justify-between gap-3">
+      <span className="flex items-center gap-2">
+        <span className={cx("h-2 w-2 shrink-0 rounded-full", neutral ? "bg-gray-500" : ok ? "bg-emerald-400" : "bg-red-500")} />
+        {label}
+      </span>
+      <span className="truncate text-right font-mono text-xs text-gray-400" title={value}>{value}</span>
+    </li>
   );
 }

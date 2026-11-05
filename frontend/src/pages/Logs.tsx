@@ -27,28 +27,28 @@ export default function Logs() {
 
   return (
     <div>
-      <PageHeader title="Logs" subtitle="Structured application logs persisted in SQLite (also written as JSON lines to backend/logs/app.jsonl)."
-        actions={<Button onClick={() => void logs.reload()}><RefreshCw className="h-4 w-4" />Refresh</Button>} />
-      {systemErrors.map((e, i) => <div key={i} className="mb-2"><ErrorBanner error={{ message: `Live system error: ${e}` }} /></div>)}
-      <Card title="Filters">
+      <PageHeader title="Логи" subtitle="Структурированные логи Launcher в SQLite (дублируются в backend/logs/app.jsonl)."
+        actions={<Button onClick={() => void logs.reload()}><RefreshCw className="h-4 w-4" />Обновить</Button>} />
+      {systemErrors.map((e, i) => <div key={i} className="mb-2"><ErrorBanner error={{ message: `Системная ошибка: ${e}` }} /></div>)}
+      <Card title="Фильтры">
         <div className="grid items-end gap-3 md:grid-cols-4">
-          <Select label="Level" value={level} onChange={(v) => { setLevel(v); setPage(1); }} testId="log-level"
-            options={[{ value: "", label: "All levels" }, { value: "WARNING+", label: "Warnings & errors" },
+          <Select label="Уровень" value={level} onChange={(v) => { setLevel(v); setPage(1); }} testId="log-level"
+            options={[{ value: "", label: "Все уровни" }, { value: "WARNING+", label: "Предупреждения и ошибки" },
               ...["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"].map((l) => ({ value: l, label: l }))]} />
-          <Select label="Component" value={component} onChange={(v) => { setComponent(v); setPage(1); }} testId="log-component"
-            options={[{ value: "", label: "All components" }, ...(components.data ?? []).map((c) => ({ value: c, label: c }))]} />
-          <TextInput label="Search message" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="text…" testId="log-search" />
+          <Select label="Компонент" value={component} onChange={(v) => { setComponent(v); setPage(1); }} testId="log-component"
+            options={[{ value: "", label: "Все компоненты" }, ...(components.data ?? []).map((c) => ({ value: c, label: c }))]} />
+          <TextInput label="Поиск по тексту" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="текст…" testId="log-search" />
           <label className="flex items-center gap-2 pb-2 text-sm text-gray-300">
             <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="accent-amber-500" />
-            Auto-refresh every {refreshMs / 1000}s
+            Автообновление каждые {refreshMs / 1000} с
           </label>
         </div>
       </Card>
-      <Card title="Entries" className="mt-6">
+      <Card title="Записи" className="mt-6">
         <ErrorBanner error={logs.error} />
-        {!logs.data ? <Spinner /> : logs.data.items.length === 0 ? <Empty>No log entries match the filters.</Empty> : (
+        {!logs.data ? <Spinner /> : logs.data.items.length === 0 ? <Empty>Нет записей, подходящих под фильтры.</Empty> : (
           <>
-            <Table head={["Timestamp", "Level", "Component", "Message"]} testId="logs-table">
+            <Table head={["Время", "Уровень", "Компонент", "Сообщение"]} testId="logs-table">
               {logs.data.items.map((l) => (
                 <tr key={l.id}>
                   <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-gray-400">{formatDate(l.timestamp)}</td>

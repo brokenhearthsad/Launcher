@@ -1,25 +1,5 @@
 // Thin typed HTTP client for the backend REST API.
-import type {
-  Health,
-  HistoryItem,
-  LogEntry,
-  MatchEventRow,
-  MatchSession,
-  Meta,
-  Overview,
-  Page,
-  Player,
-  PlayerAggregate,
-  PlayerCreate,
-  PlayerUpdate,
-  RuntimeSettings,
-  SessionAggregate,
-  SessionCreate,
-  SessionDetail,
-  SessionStatistics,
-  SettingsResponse,
-  TeamAggregate,
-} from "./types";
+import type { Health, LogEntry, Page, ProcessUsage, RuntimeSettings, SettingsResponse } from "./types";
 
 export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
@@ -48,16 +28,17 @@ export function buildQuery(q?: Query): string {
   return s ? `?${s}` : "";
 }
 
-async function request<T>(method: string, path: string, body?: unknown, query?: Query): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, query?: Query,
+  extraHeaders?: Record<string, string>): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}${buildQuery(query)}`, {
       method,
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...extraHeaders },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (e) {
-    throw new ApiError(0, "network_error", "Backend is unreachable. Is it running on 127.0.0.1:8000?", e);
+    throw new ApiError(0, "network_error", "Launcher недоступен. Запущен ли он (start.bat)?", e);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
@@ -76,35 +57,8 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
 
 export const api = {
   health: () => request<Health>("GET", "/api/health"),
-  meta: () => request<Meta>("GET", "/api/meta"),
-
-  players: (team?: string) => request<Player[]>("GET", "/api/players", undefined, { team }),
-  createPlayer: (data: PlayerCreate) => request<Player>("POST", "/api/players", data),
-  updatePlayer: (id: number, data: PlayerUpdate) => request<Player>("PUT", `/api/players/${id}`, data),
-  deletePlayer: (id: number) => request<void>("DELETE", `/api/players/${id}`),
-
-  sessions: (q?: { page?: number; page_size?: number; status?: string }) =>
-    request<Page<MatchSession>>("GET", "/api/sessions", undefined, q),
-  createSession: (data: SessionCreate) => request<SessionDetail>("POST", "/api/sessions", data),
-  session: (id: number) => request<SessionDetail>("GET", `/api/sessions/${id}`),
-  startSession: (id: number) => request<MatchSession>("POST", `/api/sessions/${id}/start`),
-  pauseSession: (id: number) => request<MatchSession>("POST", `/api/sessions/${id}/pause`),
-  resumeSession: (id: number) => request<MatchSession>("POST", `/api/sessions/${id}/resume`),
-  stopSession: (id: number) => request<MatchSession>("POST", `/api/sessions/${id}/stop`),
-  setSpeed: (id: number, speed: number) => request<MatchSession>("POST", `/api/sessions/${id}/speed`, { speed }),
-  statistics: (id: number) => request<SessionStatistics>("GET", `/api/sessions/${id}/statistics`),
-  events: (id: number, q?: { page?: number; page_size?: number; event_type?: string }) =>
-    request<Page<MatchEventRow>>("GET", `/api/sessions/${id}/events`, undefined, q),
-
-  history: (q?: { page?: number; page_size?: number; winner?: string; scenario?: string; status?: string }) =>
-    request<Page<HistoryItem>>("GET", "/api/matches/history", undefined, q),
-
-  overview: () => request<Overview>("GET", "/api/analytics/overview"),
-  analyticsPlayers: (q?: Query) => request<PlayerAggregate[]>("GET", "/api/analytics/players", undefined, q),
-  analyticsTeams: (q?: Query) => request<TeamAggregate[]>("GET", "/api/analytics/teams", undefined, q),
-  analyticsSessions: (q?: Query) => request<SessionAggregate[]>("GET", "/api/analytics/sessions", undefined, q),
-  exportUrl: (format: "csv" | "json", q?: Query) =>
-    `${API_BASE}/api/analytics/export${buildQuery({ ...q, format })}`,
+  process: () => request<ProcessUsage>("GET", "/api/system/process"),
+  shutdown: () => request<{ status: string }>("POST", "/api/system/shutdown", undefined, undefined, { "X-Launcher-Request": "1" }),
 
   logs: (q?: Query) => request<Page<LogEntry>>("GET", "/api/logs", undefined, q),
   logComponents: () => request<string[]>("GET", "/api/logs/components"),

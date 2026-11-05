@@ -189,7 +189,7 @@ export function Modal({ open, title, onClose, children, footer, wide }: {
         wide ? "max-w-5xl" : "max-w-lg")}>
         <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
           <h3 className="font-semibold">{title}</h3>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
+          <button type="button" aria-label="Закрыть" onClick={onClose} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
         <div className="p-4">{children}</div>
         {footer && <div className="flex justify-end gap-2 border-t border-surface-border px-4 py-3">{footer}</div>}
@@ -198,14 +198,14 @@ export function Modal({ open, title, onClose, children, footer, wide }: {
   );
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", onConfirm, onCancel, danger }: {
+export function ConfirmDialog({ open, title, message, confirmLabel = "Подтвердить", onConfirm, onCancel, danger }: {
   open: boolean; title: string; message: ReactNode; confirmLabel?: string; onConfirm: () => void; onCancel: () => void;
   danger?: boolean;
 }) {
   return (
     <Modal open={open} title={title} onClose={onCancel} footer={
       <>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel}>Отмена</Button>
         <Button variant={danger ? "danger" : "primary"} onClick={onConfirm}>{confirmLabel}</Button>
       </>
     }>
@@ -219,7 +219,7 @@ export function ErrorBanner({ error, onRetry }: { error: { message: string } | n
   return (
     <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-800 bg-red-950/60 px-4 py-3 text-sm text-red-200">
       <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4" />{error.message}</span>
-      {onRetry && <Button variant="ghost" onClick={onRetry}>Retry</Button>}
+      {onRetry && <Button variant="ghost" onClick={onRetry}>Повторить</Button>}
     </div>
   );
 }
@@ -228,7 +228,7 @@ export function Empty({ children }: { children: ReactNode }) {
   return <div className="rounded-lg border border-dashed border-surface-border p-6 text-center text-sm text-gray-500">{children}</div>;
 }
 
-export function Spinner({ label = "Loading…" }: { label?: string }) {
+export function Spinner({ label = "Загрузка…" }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 p-4 text-sm text-gray-400">
       <Loader2 className="h-4 w-4 animate-spin" /> {label}
@@ -240,10 +240,10 @@ export function Pagination({ page, pageSize, total, onPage }: { page: number; pa
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <div className="flex items-center justify-between pt-3 text-xs text-gray-400">
-      <span>{total} total · page {page} / {pages}</span>
+      <span>Всего {total} · стр. {page} / {pages}</span>
       <div className="flex gap-2">
-        <Button variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</Button>
-        <Button variant="ghost" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</Button>
+        <Button variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>Назад</Button>
+        <Button variant="ghost" disabled={page >= pages} onClick={() => onPage(page + 1)}>Вперёд</Button>
       </div>
     </div>
   );

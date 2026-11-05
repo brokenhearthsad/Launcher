@@ -30,7 +30,7 @@ describe("ui components", () => {
     const onCancel = vi.fn();
     render(<ConfirmDialog open title="Stop?" message="sure" onConfirm={onConfirm} onCancel={onCancel} confirmLabel="Stop it" />);
     fireEvent.click(screen.getByText("Stop it"));
-    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByText("Отмена"));
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(onCancel).toHaveBeenCalledOnce();
   });

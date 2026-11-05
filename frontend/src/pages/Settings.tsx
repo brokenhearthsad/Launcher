@@ -1,8 +1,8 @@
-import { Database, Save, Server, SlidersHorizontal } from "lucide-react";
+import { Database, Power, Save, Server, Radio } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { RuntimeSettings } from "../api/types";
-import { Button, Card, ConfirmDialog, ErrorBanner, PageHeader, Select, Spinner, TextInput, Toggle } from "../components/ui";
+import { Button, Card, ConfirmDialog, ErrorBanner, PageHeader, Select, Spinner, TextInput } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { useUiSettings } from "../hooks/UiSettings";
 import { formatBytes } from "../lib/format";
@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [purgeDays, setPurgeDays] = useState("7");
   const [confirmPurge, setConfirmPurge] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
+  const [stopped, setStopped] = useState(false);
 
   useEffect(() => {
     if (settings.data) setDraft(settings.data.runtime);
@@ -33,7 +35,7 @@ export default function SettingsPage() {
       await api.updateSettings(draft);
       await settings.reload();
       await ui.reload();
-      setMessage("Settings saved. Log levels apply immediately; simulator settings apply to new sessions.");
+      setMessage("Настройки сохранены. Уровни логов применяются сразу.");
     } catch (e) {
       setError(e as ApiError);
     } finally {
@@ -51,69 +53,80 @@ export default function SettingsPage() {
     }
   };
 
-  if (!settings.data || !draft) return <div><PageHeader title="Settings" /><ErrorBanner error={settings.error} /><Spinner /></div>;
+  const stop = async () => {
+    setConfirmStop(false);
+    try {
+      await api.shutdown();
+      setStopped(true);
+    } catch (e) {
+      setError(e as ApiError);
+    }
+  };
+
+  if (stopped) {
+    return (
+      <div>
+        <PageHeader title="Launcher остановлен" />
+        <p className="text-sm text-gray-300" role="status">Сервер корректно завершил работу. Вкладку можно закрыть. Для повторного запуска используйте start.bat.</p>
+      </div>
+    );
+  }
+  if (!settings.data || !draft) return <div><PageHeader title="Настройки" /><ErrorBanner error={settings.error} /><Spinner /></div>;
   const s = settings.data;
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Runtime configuration stored in the local database." actions={
-        <Button variant="primary" loading={saving} onClick={save} data-testid="save-settings"><Save className="h-4 w-4" />Save settings</Button>} />
+      <PageHeader title="Настройки" subtitle="Параметры хранятся в локальной базе данных." actions={
+        <Button variant="primary" loading={saving} onClick={save} data-testid="save-settings"><Save className="h-4 w-4" />Сохранить</Button>} />
       <ErrorBanner error={error} />
       {message && <p role="status" className="mb-4 text-sm text-emerald-300">{message}</p>}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Backend" icon={<Server className="h-4 w-4" />}>
+        <Card title="Сервер" icon={<Server className="h-4 w-4" />}>
           <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-gray-400">Version</dt><dd>{s.backend.version}</dd>
-            <dt className="text-gray-400">Address</dt><dd className="font-mono">http://{s.backend.host}:{s.backend.port}</dd>
-            <dt className="text-gray-400">API docs</dt><dd><a className="text-accent underline" href={`http://${s.backend.host}:${s.backend.port}/docs`} target="_blank" rel="noreferrer">/docs</a></dd>
-            <dt className="text-gray-400">Rate limit</dt><dd>{s.backend.api_rate_limit_per_minute} req/min</dd>
-            <dt className="text-gray-400">Log directory</dt><dd className="truncate font-mono text-xs">{s.backend.log_dir}</dd>
+            <dt className="text-gray-400">Версия</dt><dd>{s.backend.version}</dd>
+            <dt className="text-gray-400">Адрес</dt><dd className="font-mono">http://localhost:{s.backend.port}</dd>
+            <dt className="text-gray-400">Документация API</dt><dd><a className="text-accent underline" href="/docs" target="_blank" rel="noreferrer">/docs</a></dd>
+            <dt className="text-gray-400">Лимит запросов</dt><dd>{s.backend.api_rate_limit_per_minute} в минуту</dd>
+            <dt className="text-gray-400">Пониженный приоритет Launcher</dt><dd>{s.backend.lower_own_priority ? "включён" : "выключен"}</dd>
+            <dt className="text-gray-400">Папка логов</dt><dd className="truncate font-mono text-xs" title={s.backend.log_dir}>{s.backend.log_dir}</dd>
           </dl>
+          <p className="mt-3 text-xs text-gray-500">Адрес, порт и приоритет задаются в backend\.env (нужен перезапуск). Приоритеты других программ Launcher не меняет.</p>
           <div className="mt-4">
-            <TextInput label="Max concurrent sessions" type="number" min={1} max={8} value={draft.max_concurrent_sessions} onChange={num("max_concurrent_sessions")} />
+            <Button variant="danger" onClick={() => setConfirmStop(true)} data-testid="shutdown"><Power className="h-4 w-4" />Остановить Launcher</Button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">Host, port and CORS are set in backend/.env (restart required).</p>
         </Card>
-        <Card title="Simulator" icon={<SlidersHorizontal className="h-4 w-4" />}>
+        <Card title="Обновление интерфейса" icon={<Radio className="h-4 w-4" />}>
           <div className="grid grid-cols-2 gap-3">
-            <TextInput label="Default speed (game s / real s)" type="number" min={1} max={1000} value={draft.default_speed} onChange={num("default_speed")} testId="default-speed" />
-            <TextInput label="Default time limit (s)" type="number" min={300} max={7200} value={draft.max_game_seconds} onChange={num("max_game_seconds")} />
-            <TextInput label="Tick (game seconds)" type="number" min={0.25} max={1} value={draft.tick_seconds} onChange={num("tick_seconds")} />
-            <TextInput label="Snapshot interval (s)" type="number" min={10} max={600} value={draft.snapshot_interval} onChange={num("snapshot_interval")} />
+            <TextInput label="Частота WebSocket (раз в секунду)" type="number" min={0.5} max={20} value={draft.ws_publish_hz} onChange={num("ws_publish_hz")} />
+            <TextInput label="Интервал обновления страниц (с)" type="number" min={1} max={120} value={draft.ui_refresh_seconds} onChange={num("ui_refresh_seconds")} testId="ui-refresh" />
           </div>
-          <div className="mt-3">
-            <Toggle label="Store ability-cast and item-use events" checked={draft.persist_ability_events}
-              onChange={(v) => setDraft({ ...draft, persist_ability_events: v })} />
-          </div>
+          <p className="mt-2 text-xs text-gray-500">Чем больше интервал, тем меньше обращений к серверу. Опрос приостанавливается, когда вкладка скрыта.</p>
         </Card>
-        <Card title="Interface updates">
+        <Card title="Логирование">
           <div className="grid grid-cols-2 gap-3">
-            <TextInput label="WebSocket publish rate (Hz)" type="number" min={0.5} max={20} value={draft.ws_publish_hz} onChange={num("ws_publish_hz")} />
-            <TextInput label="Page refresh interval (s)" type="number" min={1} max={120} value={draft.ui_refresh_seconds} onChange={num("ui_refresh_seconds")} />
-          </div>
-          <p className="mt-2 text-xs text-gray-500">Live views use WebSocket pushes; the refresh interval applies to polling pages such as the dashboard and logs.</p>
-        </Card>
-        <Card title="Logging">
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Application log level" value={draft.log_level} onChange={(v) => setDraft({ ...draft, log_level: v })} options={LEVELS} testId="log-level-setting" />
-            <Select label="Database log level" value={draft.db_log_level} onChange={(v) => setDraft({ ...draft, db_log_level: v })} options={LEVELS} />
+            <Select label="Уровень логов приложения" value={draft.log_level} onChange={(v) => setDraft({ ...draft, log_level: v })} options={LEVELS} testId="log-level-setting" />
+            <Select label="Уровень логов в базе данных" value={draft.db_log_level} onChange={(v) => setDraft({ ...draft, db_log_level: v })} options={LEVELS} />
           </div>
         </Card>
-        <Card title="Database" icon={<Database className="h-4 w-4" />} className="lg:col-span-2">
-          <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-            <dt className="text-gray-400">Engine</dt><dd>{s.database.dialect}</dd>
-            <dt className="text-gray-400">Size</dt><dd>{formatBytes(s.database.size_bytes)}</dd>
-            <dt className="text-gray-400">File</dt><dd className="col-span-3 truncate font-mono text-xs md:col-span-3">{s.database.path ?? s.database.url}</dd>
+        <Card title="База данных" icon={<Database className="h-4 w-4" />}>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <dt className="text-gray-400">Тип</dt><dd>{s.database.dialect}</dd>
+            <dt className="text-gray-400">Размер</dt><dd>{formatBytes(s.database.size_bytes)}</dd>
+            <dt className="text-gray-400">Файл</dt><dd className="truncate font-mono text-xs" title={s.database.path}>{s.database.path ?? s.database.url}</dd>
+            <dt className="text-gray-400">Резервные копии</dt><dd className="truncate font-mono text-xs" title={s.database.backup_dir}>{s.database.backup_dir}</dd>
+            <dt className="text-gray-400">Последняя копия</dt><dd className="truncate font-mono text-xs">{s.database.last_backup ?? "при этом запуске не создавалась"}</dd>
           </dl>
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <Button onClick={() => action(async () => { const r = await api.vacuum(); return `Vacuum done: ${formatBytes(r.size_before)} → ${formatBytes(r.size_after)}`; })}>Vacuum database</Button>
-            <div className="w-40"><TextInput label="Purge logs older than (days)" type="number" min={0} value={purgeDays} onChange={setPurgeDays} /></div>
-            <Button variant="danger" onClick={() => setConfirmPurge(true)}>Purge logs</Button>
+            <Button onClick={() => action(async () => { const r = await api.vacuum(); return `Сжатие выполнено: ${formatBytes(r.size_before)} → ${formatBytes(r.size_after)}`; })}>Сжать базу (VACUUM)</Button>
+            <div className="w-44"><TextInput label="Удалить логи старше (дней)" type="number" min={0} value={purgeDays} onChange={setPurgeDays} /></div>
+            <Button variant="danger" onClick={() => setConfirmPurge(true)}>Удалить логи</Button>
           </div>
         </Card>
       </div>
-      <ConfirmDialog open={confirmPurge} danger title="Purge logs" confirmLabel="Purge"
-        message={`Delete all log entries older than ${purgeDays} day(s)?`} onCancel={() => setConfirmPurge(false)}
-        onConfirm={() => { setConfirmPurge(false); void action(async () => `Deleted ${(await api.purgeLogs(Number(purgeDays))).deleted} log entries.`); }} />
+      <ConfirmDialog open={confirmPurge} danger title="Удаление логов" confirmLabel="Удалить"
+        message={`Удалить все записи логов старше ${purgeDays} дн.?`} onCancel={() => setConfirmPurge(false)}
+        onConfirm={() => { setConfirmPurge(false); void action(async () => `Удалено записей: ${(await api.purgeLogs(Number(purgeDays))).deleted}`); }} />
+      <ConfirmDialog open={confirmStop} danger title="Остановить Launcher?" confirmLabel="Остановить"
+        message="Сервер корректно завершит работу. Снова запустить можно через start.bat." onCancel={() => setConfirmStop(false)} onConfirm={stop} />
     </div>
   );
 }

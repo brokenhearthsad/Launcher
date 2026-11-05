@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       rollupOptions: {
-        output: { manualChunks: { charts: ["recharts"], vendor: ["react", "react-dom", "react-router-dom"] } },
+        output: { manualChunks: { vendor: ["react", "react-dom", "react-router-dom"] } },
       },
     },
     server: {
