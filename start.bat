@@ -69,7 +69,7 @@ if errorlevel 1 (
   call "%ROOT%stop.bat" /nopause >nul
   goto :fail
 )
-call :wait "%FRONTEND_URL%" 90
+call :wait "http://127.0.0.1:5173" 90
 if errorlevel 1 (
   echo [ERROR] Frontend did not start. Last lines of .run\frontend.out.log / .err.log:
   powershell -NoProfile -Command "Get-Content -Path '%RUN%\frontend.out.log' -Tail 15; Get-Content -Path '%RUN%\frontend.err.log' -Tail 15"

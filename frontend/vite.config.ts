@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: "localhost",
+      host: "127.0.0.1", // explicit IPv4: avoids localhost resolving to ::1 only on Windows
       port: 5173,
       strictPort: true,
       // The dev server proxies API and WebSocket traffic to the backend,
