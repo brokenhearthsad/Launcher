@@ -2,6 +2,7 @@
 
 | Symptom | Fix |
 |---------|-----|
+| Window opens and closes / "nothing happens" | Download the **whole** project (branch `claude/dota-match-lab`, *Code → Download ZIP*), extract it and run `install.bat` from the extracted folder first, then `start.bat`. The scripts now pause at the end so you can read the result |
 | `install.bat`: Python not found / wrong version | Install Python 3.12+ with "Add to PATH"; reopen the terminal; `py -3.12 --version` |
 | `install.bat`: Node not found | Install Node.js 20 LTS; reopen the terminal |
 | pip SSL / proxy errors | Configure `pip config set global.proxy ...` or your corporate CA, then rerun |
