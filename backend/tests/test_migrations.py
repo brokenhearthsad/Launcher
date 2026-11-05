@@ -22,7 +22,8 @@ def _make_v1_db(settings: Settings) -> None:
     con = sqlite3.connect(path)
     con.execute("INSERT INTO players (id, name, team, slot, role, hero, bot_difficulty, status, aggression, "
                 "farming_priority, team_coordination, risk_tolerance, objective_priority, created_at, updated_at) "
-                "VALUES (1, 'Radiant 1', 'radiant', 1, 'carry', 'axe', 'hard', 'ready', .5, .5, .5, .5, .5, '2026-01-01', '2026-01-01')")
+                "VALUES (1, 'Radiant 1', 'radiant', 1, 'carry', 'axe', 'hard', 'ready', .5, .5, .5, .5, .5, "
+                "'2026-01-01', '2026-01-01')")
     con.execute("INSERT INTO system_logs (level, component, message, timestamp) "
                 "VALUES ('INFO', 'old', 'kept log', '2026-01-01 00:00:00')")
     con.commit()

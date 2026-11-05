@@ -52,3 +52,21 @@ def test_old_simulator_settings_keys_are_ignored(client):
 def test_database_maintenance(client):
     assert "size_after" in client.post("/api/settings/database/vacuum").json()
     assert client.post("/api/settings/database/purge-logs", json={"older_than_days": 0}).status_code == 200
+
+
+def test_db_logging_survives_logging_reconfiguration(client):
+    """Regression: uvicorn's dictConfig closes all handlers; DB logging must keep working."""
+    import logging.config
+
+    logging.config.dictConfig({"version": 1, "disable_existing_loggers": False})
+    get_logger("probe").warning("after reconfigure")
+    _flush()
+    assert client.get("/api/logs", params={"search": "after reconfigure"}).json()["total"] == 1
+
+
+def test_production_entrypoint_does_not_reconfigure_logging():
+    import inspect
+
+    import app.__main__ as entry
+
+    assert "log_config=None" in inspect.getsource(entry)

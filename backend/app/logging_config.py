@@ -105,11 +105,17 @@ class DatabaseLogHandler(logging.Handler):
         time.sleep(0.05)
 
     def close(self) -> None:
+        # ``logging.config.dictConfig`` and ``logging.shutdown`` call close() on every
+        # handler. Only flush here; the writer thread is stopped explicitly by stop().
+        self.flush(timeout=1.0)
+        super().close()
+
+    def stop(self) -> None:
         try:
             self._queue.put_nowait(None)
         except queue.Full:
             pass
-        super().close()
+        self._thread.join(timeout=2.0)
 
 
 _db_handler: DatabaseLogHandler | None = None
@@ -142,7 +148,7 @@ def install_db_handler(sink: Callable[[list[dict]], None], level: str) -> Databa
     root = logging.getLogger(ROOT_LOGGER)
     if _db_handler is not None:
         root.removeHandler(_db_handler)
-        _db_handler.close()
+        _db_handler.stop()
     _db_handler = DatabaseLogHandler(sink, logging.getLevelName(level.upper()))
     root.addHandler(_db_handler)
     return _db_handler

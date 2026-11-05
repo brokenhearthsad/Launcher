@@ -31,12 +31,12 @@ class EventBus:
         sid = next(self._ids)
         q: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self._queue_size)
         self._subs[sid] = q
-        log.info("websocket client subscribed (%d active)", len(self._subs))
+        log.debug("websocket client subscribed (%d active)", len(self._subs))
         return sid, q
 
     def unsubscribe(self, sid: int) -> None:
         if self._subs.pop(sid, None) is not None:
-            log.info("websocket client unsubscribed (%d active)", len(self._subs))
+            log.debug("websocket client unsubscribed (%d active)", len(self._subs))
 
     @property
     def subscriber_count(self) -> int:

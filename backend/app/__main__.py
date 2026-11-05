@@ -15,7 +15,8 @@ from app.main import create_app
 def main() -> None:
     cfg = get_settings()
     app = create_app(cfg)
-    config = uvicorn.Config(app, host=cfg.host, port=cfg.port, log_level="warning", access_log=False,
+    # log_config=None: keep our JSON/DB logging; uvicorn's dictConfig would close our handlers.
+    config = uvicorn.Config(app, host=cfg.host, port=cfg.port, log_config=None, access_log=False,
                             lifespan="on", ws_ping_interval=20, timeout_graceful_shutdown=5)
     server = uvicorn.Server(config)
     app.state.lab.server = server
