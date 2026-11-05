@@ -4,6 +4,9 @@ import { api } from "../api/client";
 import { Card, Empty, ErrorBanner, PageHeader, Spinner, StatCard, Table, cx } from "../components/ui";
 import { useLive } from "../hooks/LiveEvents";
 import { useAsync } from "../hooks/useAsync";
+import { useMonitoring } from "../hooks/Monitoring";
+import { fmt, formatDuration, Meter, NO_DATA } from "../components/metrics";
+import { Flag } from "./SteamDota";
 import { useUiSettings } from "../hooks/UiSettings";
 import { formatDate } from "../lib/format";
 
@@ -24,14 +27,34 @@ export default function Dashboard() {
   const health = useAsync(api.health, [], refreshMs);
   const proc = useAsync(api.process, [], refreshMs);
   const settings = useAsync(api.settings, []);
+  const { metrics: m, environment: env } = useMonitoring();
+  const slots = useAsync(api.slots, [], refreshMs);
+  const bound = slots.data?.find((x) => x.binding === "local_client");
   const problems = useAsync(() => api.logs({ level: ["WARNING", "ERROR", "CRITICAL"], page_size: 5 }), [], refreshMs);
 
   const h = health.data;
   const p = proc.data;
   return (
     <div>
-      <PageHeader title="Обзор" subtitle="Состояние Launcher. Мониторинг Steam, Dota 2 и ресурсов ПК добавляется на следующих этапах." />
+      <PageHeader title="Обзор" subtitle="Состояние компьютера, Steam / Dota 2, слотов и самого Launcher." />
       <ErrorBanner error={health.error ?? proc.error} onRetry={() => { void health.reload(); void proc.reload(); }} />
+      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="overview-machine">
+        <Meter label="CPU" value={m?.cpu.percent} hint={m?.cpu_temp.available ? `температура ${fmt(m.cpu_temp.temp_c, "°C", 1)}` : `температура: ${NO_DATA}`} />
+        <Meter label="ОЗУ" value={m?.memory.percent} hint={m ? `${fmt(m.memory.used_mb / 1024, "ГБ", 1)} из ${fmt(m.memory.total_mb / 1024, "ГБ", 1)}` : undefined} />
+        <Meter label="GPU" value={m?.gpu.available ? m.gpu.util_percent : null}
+          hint={m?.gpu.available ? `${fmt(m.gpu.temp_c, "°C")} · VRAM ${fmt(m.gpu.mem_used_mb, "МБ")}` : NO_DATA} />
+        <div className="rounded-xl border border-surface-border bg-surface/80 p-4 text-sm" data-testid="overview-env">
+          <div className="text-xs uppercase tracking-wide text-gray-400">Steam и Dota 2</div>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between"><span>Steam</span><Flag ok={env ? env.steam.process.running : null} yes="запущен" no={env?.steam.installed ? "остановлен" : "не найден"} /></div>
+            <div className="flex justify-between"><span>Dota 2</span><Flag ok={env ? env.dota.process.running : null} yes="запущена" no={env?.dota.installed ? "остановлена" : "не найдена"} /></div>
+            {env?.dota.process.running && <div className="text-xs text-gray-500">работает {formatDuration(env.dota.process.uptime_seconds)}</div>}
+            <div className="pt-1 text-xs text-gray-400">
+              {bound ? <>Слот «{bound.name}»: {bound.status_label}</> : <Link className="text-accent hover:underline" to="/slots">слот не привязан</Link>}
+            </div>
+          </div>
+        </div>
+      </div>
       {!h && health.loading && <Spinner />}
       {h && (
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="dashboard-stats">

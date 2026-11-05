@@ -2,7 +2,7 @@ import { Database, Power, Save, Server, Radio } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { RuntimeSettings } from "../api/types";
-import { Button, Card, ConfirmDialog, ErrorBanner, PageHeader, Select, Spinner, TextInput } from "../components/ui";
+import { Button, Card, ConfirmDialog, ErrorBanner, PageHeader, Select, Spinner, TextInput, Toggle } from "../components/ui";
 import { useAsync } from "../hooks/useAsync";
 import { useUiSettings } from "../hooks/UiSettings";
 import { formatBytes } from "../lib/format";
@@ -100,6 +100,19 @@ export default function SettingsPage() {
             <TextInput label="Интервал обновления страниц (с)" type="number" min={1} max={120} value={draft.ui_refresh_seconds} onChange={num("ui_refresh_seconds")} testId="ui-refresh" />
           </div>
           <p className="mt-2 text-xs text-gray-500">Чем больше интервал, тем меньше обращений к серверу. Опрос приостанавливается, когда вкладка скрыта.</p>
+        </Card>
+        <Card title="Мониторинг" className="lg:col-span-2">
+          <div className="grid gap-3 md:grid-cols-4">
+            <TextInput label="Интервал, страница открыта (с)" type="number" min={1} max={30} value={draft.monitor_active_interval} onChange={num("monitor_active_interval")} testId="active-interval" />
+            <TextInput label="Интервал, страница закрыта (с)" type="number" min={5} max={300} value={draft.monitor_idle_interval} onChange={num("monitor_idle_interval")} />
+            <TextInput label="Проверка процессов (с)" type="number" min={2} max={120} value={draft.process_scan_interval} onChange={num("process_scan_interval")} />
+            <TextInput label="Хранить историю (дней)" type="number" min={1} max={365} value={draft.metrics_retention_days} onChange={num("metrics_retention_days")} />
+          </div>
+          <div className="mt-4 grid items-end gap-3 md:grid-cols-[auto_1fr]">
+            <Toggle label="Температура CPU из LibreHardwareMonitor" checked={draft.lhm_enabled} onChange={(v) => setDraft({ ...draft, lhm_enabled: v })} />
+            <TextInput label="Адрес LibreHardwareMonitor (только этот ПК)" value={draft.lhm_url} onChange={(v) => setDraft({ ...draft, lhm_url: v })} testId="lhm-url" />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">LibreHardwareMonitor нужно запустить отдельно: Options → Remote Web Server → Run (порт 8085). Без него температура CPU показывается как «Нет данных».</p>
         </Card>
         <Card title="Логирование">
           <div className="grid grid-cols-2 gap-3">

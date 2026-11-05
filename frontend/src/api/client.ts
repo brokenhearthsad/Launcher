@@ -1,5 +1,8 @@
 // Thin typed HTTP client for the backend REST API.
-import type { Health, LogEntry, Page, ProcessUsage, RuntimeSettings, SettingsResponse } from "./types";
+import type {
+  EnvironmentState, EventItem, Health, HistoryPoint, LogEntry, Metrics, Page, ProcessUsage, RuntimeSettings, SeriesPoint,
+  SettingsResponse, Slot,
+} from "./types";
 
 export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
@@ -59,6 +62,18 @@ export const api = {
   health: () => request<Health>("GET", "/api/health"),
   process: () => request<ProcessUsage>("GET", "/api/system/process"),
   shutdown: () => request<{ status: string }>("POST", "/api/system/shutdown", undefined, undefined, { "X-Launcher-Request": "1" }),
+
+  metrics: () => request<Metrics>("GET", "/api/monitoring/current"),
+  recent: (seconds = 900) => request<{ points: SeriesPoint[] }>("GET", "/api/monitoring/recent", undefined, { seconds }),
+  history: (hours = 24) => request<{ points: HistoryPoint[] }>("GET", "/api/monitoring/history", undefined, { hours }),
+
+  environment: () => request<EnvironmentState>("GET", "/api/environment"),
+  refreshEnvironment: () => request<EnvironmentState>("POST", "/api/environment/refresh"),
+  events: (q?: Query) => request<Page<EventItem>>("GET", "/api/events", undefined, q),
+
+  slots: () => request<Slot[]>("GET", "/api/slots"),
+  updateSlot: (id: number, data: Partial<Pick<Slot, "name" | "note" | "binding">>) => request<Slot>("PUT", `/api/slots/${id}`, data),
+  slotHistory: (id: number, q?: Query) => request<Page<EventItem>>("GET", `/api/slots/${id}/history`, undefined, q),
 
   logs: (q?: Query) => request<Page<LogEntry>>("GET", "/api/logs", undefined, q),
   logComponents: () => request<string[]>("GET", "/api/logs/components"),
