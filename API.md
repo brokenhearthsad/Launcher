@@ -1,4 +1,4 @@
-# API (PHASE 2)
+# API (PHASE 3)
 
 База: `http://localhost:8000`. Интерактивно: `/docs`. Ошибки: `{"error": {"code", "message", "details?"}}`.
 
@@ -21,7 +21,15 @@
 | GET | `/api/slots`, `/api/slots/{1..10}` | слоты со статусом |
 | PUT | `/api/slots/{id}` | `{name?, note?, binding?: none\|local_client}`; второй `local_client` → 409 |
 | GET | `/api/slots/{id}/history` | история слота |
-| WS | `/ws/events` | `hello`, `metrics_updated`, `environment_updated`, `slot_updated`, `event_created`, `settings_updated`, `system_error`, `shutdown`, `ping`/`pong` |
+| POST | `/gsi` | приём Dota 2 GSI: только loopback, токен в `auth.token`; 200 / 400 (JSON) / 401 (токен) / 403 (не локально) / 413 (> 512 КБ) |
+| GET | `/api/gsi/state` | `status` (waiting/live/delayed/stale), `freshness`, `last_update`, `age_seconds`, счётчики, `snapshot` (или null), текущий `match` |
+| GET | `/api/gsi/matches?result=&page=` | агрегированная история матчей |
+| GET | `/api/gsi/config` | проверка установки + `plan` (действие, текущий/новый текст с маской токена, `plan_id`), `launch_option`, `backups` |
+| POST | `/api/gsi/install` | `{plan_id, confirm: true}` + заголовок `X-Launcher-Request: 1`; 409 если файл изменился после предпросмотра |
+| POST | `/api/gsi/uninstall` | `{confirm: true}` + заголовок; только файл Launcher; создаёт копию |
+| GET | `/api/gsi/backups` | резервные копии cfg |
+| POST | `/api/gsi/restore` | `{name, confirm: true}` + заголовок; текущий файл сначала копируется |
+| WS | `/ws/events` | `gsi_updated` (не чаще `ws_publish_hz`, последнее обновление доставляется всегда), `hello`, `metrics_updated`, `environment_updated`, `slot_updated`, `event_created`, `settings_updated`, `system_error`, `shutdown`, `ping`/`pong` |
 | GET | `/*` | интерфейс из `frontend/dist` |
 
 Коды: 403 `forbidden`, 404 `not_found`, 409 `conflict`, 422 `validation_error`, 429 `rate_limited`,
@@ -29,3 +37,6 @@
 
 Недоступный показатель передаётся как `null` (у GPU и температуры CPU — `available: false` и `reason`).
 `503 monitoring_disabled` — если мониторинг выключен (`DML_MONITORING_ENABLED=false`).
+
+Поля снимка GSI, которых нет в текущем контексте игры (меню, выбор героя, наблюдатель), равны `null`.
+SteamID, account id и имя игрока из пакета не сохраняются и не возвращаются.
