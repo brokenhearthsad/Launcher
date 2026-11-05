@@ -50,3 +50,27 @@ python -m app                       # http://localhost:8000
 `backend\.env` (префикс `DML_`): адрес/порт, путь к БД и папке копий, уровни логов,
 `DML_LOWER_OWN_PRIORITY` (по умолчанию `false`: понижение приоритета **только самого Launcher**, по желанию).
 Интервал обновления страниц, частота WebSocket и уровни логов меняются на странице «Настройки».
+
+## Температура CPU (необязательно): LibreHardwareMonitor
+
+Windows не отдаёт температуру Ryzen без драйвера, поэтому без LibreHardwareMonitor Launcher
+показывает «Нет данных».
+
+1. Скачайте LibreHardwareMonitor с https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases
+   и запустите его (права администратора нужны самой программе, не Launcher).
+2. В LibreHardwareMonitor: **Options → Remote Web Server → Run** (порт по умолчанию 8085).
+3. В Launcher: **Настройки → Мониторинг → «Температура CPU из LibreHardwareMonitor»** → Сохранить.
+
+Launcher обращается только к адресу на этом ПК (`http://127.0.0.1:8085/data.json`); другие адреса запрещены.
+
+## Видеокарта NVIDIA
+
+Данные берутся через NVML (входит в драйвер NVIDIA), иначе через `nvidia-smi`. Если драйвера нет,
+показатели GPU — «Нет данных» с указанием причины.
+
+## Steam и Dota 2
+
+Steam ищется в реестре (`HKCU\Software\Valve\Steam\SteamPath`) и в стандартных папках, библиотеки — в
+`steamapps\libraryfolders.vdf`, Dota 2 — по `appmanifest_570.acf`. Если Steam стоит в нестандартном месте
+и не найден, укажите `DML_STEAM_PATH` в `backend\.env`.
+Launcher **не запускает, не закрывает и не меняет приоритет** Steam и Dota 2, не читает пароли и токены.
