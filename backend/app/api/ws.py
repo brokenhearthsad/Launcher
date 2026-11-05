@@ -7,6 +7,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.logging_config import get_logger
+from app.state import VERSION
 
 router = APIRouter()
 log = get_logger("ws")
@@ -18,8 +19,7 @@ async def events(ws: WebSocket) -> None:
     state = ws.app.state.lab
     await ws.accept()
     sid, queue = state.bus.subscribe()
-    await ws.send_json({"type": "hello", "session_id": None,
-                        "data": {"active_sessions": state.manager.active_ids()}})
+    await ws.send_json({"type": "hello", "session_id": None, "data": {"version": VERSION}})
 
     async def reader() -> None:
         # Clients may send {"type": "ping"}; anything else is ignored.

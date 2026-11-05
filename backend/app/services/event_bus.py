@@ -15,10 +15,8 @@ from app.logging_config import get_logger
 
 log = get_logger("ws")
 
-EVENT_TYPES = (
-    "session_created", "session_started", "session_paused", "session_resumed", "session_finished",
-    "player_updated", "bot_action", "match_event", "statistics_updated", "system_error",
-)
+# Phase 1 infrastructure events; later phases register their own types here.
+EVENT_TYPES = ("system_error", "settings_updated", "shutdown")
 
 
 class EventBus:

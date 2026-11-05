@@ -1,6 +1,7 @@
 """FastAPI application factory.
 
-Run locally:  uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
+Production:   python -m app            (see app/__main__.py)
+Development:  uvicorn app.main:create_app --factory --reload
 """
 from __future__ import annotations
 
@@ -9,17 +10,19 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import analytics, health, logs, matches, players, sessions, settings, ws
+from app.api import health, logs, settings, system, ws
+from app.api.frontend import mount_frontend
 from app.api.ratelimit import RateLimitMiddleware
 from app.config import Settings, get_settings
 from app.db.models import SystemLog
-from app.db.seed import seed_players
 from app.db.session import init_engine, run_migrations, session_scope
 from app.errors import AppError
 from app.logging_config import get_db_handler, get_logger, install_db_handler, setup_logging
+from app.platform.process_info import lower_own_priority
 from app.services import settings_service
 from app.services.event_bus import EventBus
 from app.state import VERSION, LabState
@@ -43,35 +46,34 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
     cfg = cfg or get_settings()
     setup_logging(cfg.log_level, cfg.log_dir)
     init_engine(cfg.database_url)
-    run_migrations(cfg.database_url)
+    backup = run_migrations(cfg.database_url, cfg.backup_dir)
     install_db_handler(_persist_logs, cfg.db_log_level)
+    if cfg.lower_own_priority:
+        lower_own_priority()
 
     with session_scope() as db:
         runtime = settings_service.load(db, cfg)
     settings_service.apply(runtime)
-    state = LabState(cfg, EventBus(cfg.ws_queue_size), runtime)
+    state = LabState(cfg, EventBus(cfg.ws_queue_size), runtime, last_backup=backup)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        with session_scope() as db:
-            created = seed_players(db) if cfg.seed_demo_players else 0
-            state.manager.recover(db)
-        if created:
-            log.info("seeded %d default test participants", created)
-        log.info("backend started (v%s) on http://%s:%d", VERSION, cfg.host, cfg.port)
+        if backup is not None:
+            log.info("pre-migration database backup kept at %s", backup)
+        log.info("Launcher v%s started on http://localhost:%d", VERSION, cfg.port)
         yield
-        log.info("backend shutting down")
-        await state.manager.shutdown()
+        log.info("Launcher shutting down")
         handler = get_db_handler()
         if handler is not None:
             handler.flush()
 
     app = FastAPI(title=cfg.app_name, version=VERSION, lifespan=lifespan,
-                  description="Local test lab for 5v5 bot matches. Matches run in the local simulator.")
+                  description="Local monitoring platform for Steam / Dota 2 test environments.")
     app.state.lab = state
     app.add_middleware(RateLimitMiddleware, per_minute=cfg.api_rate_limit_per_minute)
     app.add_middleware(CORSMiddleware, allow_origins=cfg.cors_origins, allow_credentials=False,
                        allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=cfg.allowed_hosts)
 
     @app.exception_handler(AppError)
     async def app_error(_req: Request, exc: AppError):
@@ -96,14 +98,8 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         state.bus.publish("system_error", {"component": "api", "message": f"{type(exc).__name__}: {exc}"})
         return _error(500, "internal_error", "internal server error")
 
-    for r in (health, players, sessions, matches, analytics, logs, settings):
+    for r in (health, system, logs, settings):
         app.include_router(r.router)
     app.include_router(ws.router)
+    mount_frontend(app, cfg.frontend_dist)  # must be last: catch-all route
     return app
-
-
-if __name__ == "__main__":  # pragma: no cover
-    import uvicorn
-
-    s = get_settings()
-    uvicorn.run("app.main:create_app", factory=True, host=s.host, port=s.port)

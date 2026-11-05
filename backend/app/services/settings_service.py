@@ -2,8 +2,7 @@
 
 Defaults come from environment configuration (``app.config``); values saved
 from the Settings page override them and take effect without a restart:
-log levels immediately, simulator settings for newly created sessions,
-publish rate and concurrency limits on the next session start.
+log levels immediately, the UI refresh interval on the next page load.
 """
 from __future__ import annotations
 
@@ -20,14 +19,9 @@ log = get_logger("settings")
 
 def defaults(cfg: Settings) -> RuntimeSettings:
     return RuntimeSettings(
-        default_speed=cfg.sim_default_speed,
-        max_game_seconds=cfg.sim_max_game_seconds,
-        snapshot_interval=cfg.sim_snapshot_interval,
-        tick_seconds=cfg.sim_tick_seconds,
         ws_publish_hz=cfg.ws_publish_hz,
         log_level=cfg.log_level.upper(),
         db_log_level=cfg.db_log_level.upper(),
-        max_concurrent_sessions=cfg.max_concurrent_sessions,
     )
 
 

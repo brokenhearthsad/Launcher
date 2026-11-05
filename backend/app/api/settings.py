@@ -30,17 +30,22 @@ def _db_info(url: str) -> dict:
 @router.get("")
 def get_settings(state: State) -> dict:
     cfg = state.config
+    db = _db_info(cfg.database_url)
+    db["backup_dir"] = str(cfg.backup_dir)
+    db["last_backup"] = str(state.last_backup) if state.last_backup else None
     return {
         "runtime": state.runtime.model_dump(),
-        "backend": {"version": VERSION, "host": cfg.host, "port": cfg.port, "cors_origins": cfg.cors_origins,
-                    "api_rate_limit_per_minute": cfg.api_rate_limit_per_minute, "log_dir": str(cfg.log_dir)},
-        "database": _db_info(cfg.database_url),
+        "backend": {"version": VERSION, "host": cfg.host, "port": cfg.port,
+                    "api_rate_limit_per_minute": cfg.api_rate_limit_per_minute, "log_dir": str(cfg.log_dir),
+                    "frontend_dist": str(cfg.frontend_dist), "lower_own_priority": cfg.lower_own_priority},
+        "database": db,
     }
 
 
 @router.put("", response_model=RuntimeSettings)
 def update_settings(data: RuntimeSettingsUpdate, db: DB, state: State):
     state.runtime = settings_service.update(db, state.config, data)
+    state.bus.publish("settings_updated", state.runtime.model_dump())
     return state.runtime
 
 

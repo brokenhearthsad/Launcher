@@ -1,8 +1,11 @@
 """Engine / session factory and migration bootstrap."""
 from __future__ import annotations
 
+import shutil
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
@@ -48,16 +51,88 @@ def get_engine() -> Engine:
     return _engine
 
 
-def run_migrations(database_url: str) -> None:
-    """Apply Alembic migrations up to head (idempotent)."""
-    from alembic import command
+def _alembic_config(database_url: str):
     from alembic.config import Config
 
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
     cfg.set_main_option("sqlalchemy.url", database_url)
     cfg.attributes["configure_logger"] = False
-    command.upgrade(cfg, "head")
+    return cfg
+
+
+def sqlite_path(database_url: str) -> Path | None:
+    if database_url.startswith("sqlite:///") and ":memory:" not in database_url:
+        return Path(database_url.removeprefix("sqlite:///"))
+    return None
+
+
+def pending_migrations(database_url: str) -> tuple[str | None, str]:
+    """(current revision, head revision) of the database."""
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config(database_url))
+    head = script.get_current_head() or ""
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as conn:
+            current = MigrationContext.configure(conn).get_current_revision()
+    finally:
+        engine.dispose()
+    return current, head
+
+
+def backup_sqlite(src: Path, backup_dir: Path, label: str) -> Path:
+    """Consistent copy of a live SQLite database using the SQLite backup API."""
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dest = backup_dir / f"{src.stem}-{stamp}-{label}{src.suffix}"
+    source = sqlite3.connect(src)
+    try:
+        target = sqlite3.connect(dest)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+    finally:
+        source.close()
+    return dest
+
+
+def run_migrations(database_url: str, backup_dir: Path | None = None) -> Path | None:
+    """Apply Alembic migrations up to head (idempotent).
+
+    If an existing SQLite database needs migrating, a backup is written first
+    and is restored automatically when the migration fails. Backups are never
+    deleted by the application. Returns the backup path (if one was made).
+    """
+    from alembic import command
+
+    path = sqlite_path(database_url)
+    current, head = pending_migrations(database_url)
+    backup: Path | None = None
+    if path is not None and path.exists() and path.stat().st_size > 0 and current != head:
+        backup = backup_sqlite(path, backup_dir or path.parent / "backups", f"pre-{head}")
+        _log().info("database backup before migration %s -> %s: %s", current, head, backup)
+    try:
+        command.upgrade(_alembic_config(database_url), "head")
+    except Exception:
+        if backup is not None and path is not None:
+            if _engine is not None:
+                _engine.dispose()
+            for suffix in ("-wal", "-shm"):
+                Path(str(path) + suffix).unlink(missing_ok=True)
+            shutil.copyfile(backup, path)
+            _log().error("migration failed; database restored from %s", backup)
+        raise
+    return backup
+
+
+def _log():
+    from app.logging_config import get_logger
+
+    return get_logger("db")
 
 
 @contextmanager
