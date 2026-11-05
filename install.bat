@@ -56,18 +56,23 @@ if errorlevel 1 goto :fail
 if not exist "backend\.env" copy /y "backend\.env.example" "backend\.env" >nul
 if not exist "frontend\.env" copy /y "frontend\.env.example" "frontend\.env" >nul
 
-echo [3/4] Installing frontend dependencies (may take a few minutes)...
+echo [3/4] Building the web interface (Node.js is needed only for this step)...
 pushd frontend
 call npm install --no-audit --no-fund
 if errorlevel 1 (
   popd
   goto :fail
 )
+call npm run build
+if errorlevel 1 (
+  popd
+  goto :fail
+)
 popd
 
-echo [4/4] Creating database...
+echo [4/4] Preparing database (a backup is made automatically before any migration)...
 pushd backend
-.venv\Scripts\python.exe -c "from app.config import get_settings; from app.db.session import init_engine, run_migrations; s=get_settings(); init_engine(s.database_url); run_migrations(s.database_url); print('database ready:', s.database_url)"
+.venv\Scripts\python.exe -c "from app.config import get_settings; from app.db.session import init_engine, run_migrations; s=get_settings(); init_engine(s.database_url); b=run_migrations(s.database_url, s.backup_dir); print('database ready:', s.database_url); print('backup:', b or 'not needed')"
 if errorlevel 1 (
   popd
   goto :fail
@@ -77,6 +82,7 @@ popd
 echo.
 echo ==========================================================
 echo   Installation complete. Now run start.bat
+echo   The panel will open at http://localhost:8000
 echo ==========================================================
 if /i not "%~1"=="/nopause" pause
 exit /b 0

@@ -1,16 +1,14 @@
-# Installation
+# Установка
 
-## Requirements
+## Требования
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Windows | 10 / 11 | Linux/macOS work with the manual commands below |
-| Python | 3.12 or newer | "Add python.exe to PATH" during install; `py` launcher is used if present |
-| Node.js | 20 LTS or newer | includes npm |
+| Компонент | Версия | Зачем |
+|-----------|--------|-------|
+| Windows | 11 (10 тоже подойдёт) | |
+| Python | 3.12+ | работа Launcher. При установке отметьте «Add python.exe to PATH» |
+| Node.js | 20 LTS+ | **только** сборка интерфейса в `install.bat` |
 
-No Docker, database server or Steam installation is needed. SQLite is embedded.
-
-## Automatic (Windows)
+## Автоматически
 
 ```bat
 install.bat
@@ -18,54 +16,37 @@ start.bat
 ```
 
 `install.bat`:
-1. checks Python ≥ 3.12 and Node.js;
-2. creates `backend\.venv` and installs `backend\requirements-dev.txt`;
-3. copies `backend\.env.example` → `backend\.env` and `frontend\.env.example` → `frontend\.env` (if missing);
-4. runs `npm install` in `frontend`;
-5. applies Alembic migrations, creating `backend\data\match_lab.db`.
-   The ten default participants are created on the first backend start.
+1. находит Python 3.12+ (`py -3.13`, `py -3.12`, `py -3`, `python`) и Node.js;
+2. создаёт `backend\.venv`, ставит зависимости;
+3. копирует `.env.example` → `.env`, если файлов ещё нет;
+4. `npm install` + `npm run build` → `frontend\dist`;
+5. применяет миграции. **Если база уже существует и её нужно обновить, сначала создаётся копия**
+   в `backend\data\backups\match_lab-<дата>-pre-<версия>.db`. При ошибке миграции база
+   автоматически восстанавливается из копии. Копии Launcher никогда не удаляет.
 
-`start.bat` checks dependencies and free ports (8000, 5173), starts the backend (one process),
-waits for `/api/health`, starts the Vite dev server, waits for it and opens http://localhost:5173.
-Process IDs and console output go to `.run\`. `stop.bat` stops both process trees.
+`start.bat` проверяет установку и свободный порт 8000, запускает **один** скрытый процесс
+`python -m app`, ждёт `/api/health` и открывает http://localhost:8000. Вывод процесса — в `.run\`.
 
-## Manual commands
+`stop.bat` сначала просит Launcher завершиться корректно (`POST /api/system/shutdown`), ждёт до 10 с
+и только потом завершает процесс принудительно. Ту же остановку можно сделать в
+«Настройки → Остановить Launcher».
 
-Backend:
+## Вручную
+
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements-dev.txt
-uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
-```
-Migrations run automatically on startup. To run them explicitly: `alembic upgrade head`.
-
-Frontend:
-```bash
-cd frontend
-npm install
-npm run dev          # http://localhost:5173, proxies /api and /ws to the backend
-npm run build        # production bundle in dist/ (serve with: npm run preview)
+cd ..\frontend && npm install && npm run build && cd ..\backend
+python -m app                       # http://localhost:8000
 ```
 
-## Configuration
+Разработка интерфейса с горячей перезагрузкой: `python -m app` + `cd frontend && npm run dev`
+(http://localhost:5173, проксирует `/api` и `/ws` на :8000).
 
-`backend/.env` (all optional, prefix `DML_`): host/port, `DATABASE_URL`, CORS origins, log levels,
-`MAX_CONCURRENT_SESSIONS`, `WS_PUBLISH_HZ`, `API_RATE_LIMIT_PER_MINUTE`, simulator defaults.
-Most runtime values can also be changed on the **Settings** page and are stored in the database.
+## Настройки
 
-`frontend/.env`: `VITE_BACKEND_URL` — where the dev server proxies API/WebSocket calls.
-
-No secrets are required or stored. Never put Steam credentials into this project.
-
-## Using the lab
-
-- **Add participants**: Players → *Add participant* (name, team, role, hero, status).
-- **Configure bots**: Bot Configuration → choose a participant → difficulty + sliders → *Save*
-  (optionally "apply to whole team", presets).
-- **Create a test session**: Match Control → set scenario, mode, seed, speed, time limit,
-  tick the 10 participants (5 per team, unique heroes) → *Create session* → *Start*.
-- **Watch**: Live Match (or the *Live* link next to the session).
-- **Statistics**: Analytics (filters + export) and Match History → *Details*.
-- **Logs**: Logs page (filter by level/component/text) or `backend/logs/app.jsonl`.
+`backend\.env` (префикс `DML_`): адрес/порт, путь к БД и папке копий, уровни логов,
+`DML_LOWER_OWN_PRIORITY` (по умолчанию `false`: понижение приоритета **только самого Launcher**, по желанию).
+Интервал обновления страниц, частота WebSocket и уровни логов меняются на странице «Настройки».

@@ -1,59 +1,45 @@
-# Dota 2 Match Lab
+# Launcher
 
-Local platform for testing 5v5 game scenarios with ten AI-controlled participants
-(Radiant ×5, Dire ×5), a web dashboard, a FastAPI backend, SQLite storage,
-a deterministic match simulator and an analytics engine. Runs on one Windows 10/11 PC.
+Локальная Windows-платформа для мониторинга игровых тестовых окружений Steam / Dota 2:
+10 логических слотов (5 Radiant + 5 Dire), обнаружение процессов, мониторинг ресурсов ПК,
+диагностика, события, история и аналитика. План и обоснование — [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
-> **Important:** matches are played in the built-in **local simulator**
-> (`environment = "mock"`). They are simplified simulations, not real Dota 2 games.
-> No Steam accounts are used. Integration with a real Dota 2 test environment is
-> **not implemented** — the `dota_test` adapter only reports why
-> (see [ARCHITECTURE.md](ARCHITECTURE.md#dota-2-integration-research)).
-> Public matchmaking, ranked games, anti-cheat evasion and similar are out of scope.
+> **Статус: PHASE 1 (очистка и фундамент) завершена.** Работают: один процесс Python,
+> веб-панель на http://localhost:8000 (Обзор, Логи, Настройки), резервная копия БД перед
+> миграцией, корректная остановка. Слоты, Steam/Dota и мониторинг ресурсов — следующие этапы.
+>
+> Прежняя версия с симулятором 5v5 сохранена в ветке `archive/v1-simulator`.
 
-## Quick start (Windows)
+Принципы: только пассивное наблюдение и разрешённые интерфейсы (список процессов, файлы
+и реестр Steam, официальный Game State Integration). Никакой автоматизации рейтинговых матчей,
+обхода античита, хранения паролей/токенов Steam, изменения приоритетов чужих процессов.
+
+## Быстрый старт (Windows 11)
 
 ```bat
-install.bat   :: once: venv, pip/npm packages, database
-start.bat     :: launches backend + frontend and opens the panel
-stop.bat      :: stops both
+install.bat   :: один раз: Python-окружение, сборка интерфейса, база данных
+start.bat     :: запуск (один python.exe) и открытие http://localhost:8000
+stop.bat      :: корректная остановка
 ```
 
-| Component | Address |
-|-----------|---------|
-| Web panel | http://localhost:5173 |
-| Backend | http://127.0.0.1:8000 |
-| API docs (Swagger) | http://127.0.0.1:8000/docs |
+Требуется Python 3.12+ и Node.js 20+ (Node нужен **только** для сборки интерфейса в `install.bat`;
+в обычной работе Node.js не запускается). Подробности: [INSTALLATION.md](INSTALLATION.md).
 
-Requirements: Python 3.12+, Node.js 20+. Details: [INSTALLATION.md](INSTALLATION.md).
+| | Адрес |
+|--|--|
+| Панель | http://localhost:8000 |
+| Документация API | http://localhost:8000/docs |
 
-## What you can do
+## Целевые показатели
 
-1. **Players** — ten seeded participants (`Radiant 1…5`, `Dire 1…5`); edit name, team, role, hero, status; add/delete.
-2. **Bot Configuration** — per-bot AI difficulty and five sliders (aggression, farming, coordination, risk, objectives).
-   These values are snapshotted into a session at start and drive the utility AI.
-3. **Match Control** — create a session (scenario, simulator mode, seed, speed, time limit, participant assignment),
-   start / pause / resume / change speed / stop (with confirmation).
-4. **Live Match** — score, clock, map, hero states, objectives, Team AI directives, event feed and the last
-   decision of every bot, pushed over WebSocket.
-5. **Analytics** — GPM/XPM, net worth, K/D/A, tower damage, durations, team comparison, net-worth timeline;
-   filters by team/participant/session/scenario; CSV/JSON export.
-6. **Match History**, **Logs**, **Settings** (simulator, update rate, logging, DB maintenance).
+| Показатель | Цель | Замер PHASE 1 (Linux, тот же код) |
+|-----------|------|-------------------------------------|
+| Процессы в работе | 1 × python.exe, 0 × node | 1 / 0 |
+| RAM | < 150 МБ | ≈ 84 МБ RSS |
+| CPU в простое | < 1 % | ≈ 0.08 % одного ядра |
+| CPU с открытой панелью | < 1 % | ≈ 0.3 % одного ядра |
 
-## Repository layout
+## Документация
 
-```
-backend/   FastAPI app, simulator, bot AI, SQLite + Alembic, pytest suite
-frontend/  React + TypeScript + Vite + Tailwind + Recharts dashboard, Vitest + Playwright
-*.bat      install / start / stop for Windows
-*.md       documentation
-```
-
-## Documentation
-
-- [INSTALLATION.md](INSTALLATION.md) — install & run, manual (non-.bat) commands
-- [ARCHITECTURE.md](ARCHITECTURE.md) — components, data flow, adapters, adding a new adapter, risks
-- [API.md](API.md) — REST and WebSocket reference
-- [BOT_AI.md](BOT_AI.md) — how the bots think, how settings change behaviour
-- [TESTING.md](TESTING.md) — test suites and how to run them
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common problems
+[INSTALLATION.md](INSTALLATION.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [API.md](API.md) ·
+[TESTING.md](TESTING.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [PROJECT_AUDIT.md](PROJECT_AUDIT.md)
