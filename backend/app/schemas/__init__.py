@@ -37,6 +37,13 @@ class RuntimeSettings(BaseModel):
     ui_refresh_seconds: int = Field(5, ge=1, le=120)
     log_level: str = Field("INFO", pattern=LEVEL_PATTERN)
     db_log_level: str = Field("INFO", pattern=LEVEL_PATTERN)
+    # Adaptive monitoring: fast while a Launcher page is open, slow otherwise.
+    monitor_active_interval: float = Field(2.0, ge=1.0, le=30.0)
+    monitor_idle_interval: float = Field(15.0, ge=5.0, le=300.0)
+    process_scan_interval: float = Field(5.0, ge=2.0, le=120.0)
+    lhm_enabled: bool = False
+    lhm_url: str = Field("http://127.0.0.1:8085/data.json", max_length=200, pattern=r"^http://(127\.0\.0\.1|localhost)(:\d+)?/")
+    metrics_retention_days: int = Field(14, ge=1, le=365)
 
 
 class RuntimeSettingsUpdate(BaseModel):
@@ -44,6 +51,12 @@ class RuntimeSettingsUpdate(BaseModel):
     ui_refresh_seconds: int | None = Field(None, ge=1, le=120)
     log_level: str | None = Field(None, pattern=LEVEL_PATTERN)
     db_log_level: str | None = Field(None, pattern=LEVEL_PATTERN)
+    monitor_active_interval: float | None = Field(None, ge=1.0, le=30.0)
+    monitor_idle_interval: float | None = Field(None, ge=5.0, le=300.0)
+    process_scan_interval: float | None = Field(None, ge=2.0, le=120.0)
+    lhm_enabled: bool | None = None
+    lhm_url: str | None = Field(None, max_length=200, pattern=r"^http://(127\.0\.0\.1|localhost)(:\d+)?/")
+    metrics_retention_days: int | None = Field(None, ge=1, le=365)
 
 
 class PurgeRequest(BaseModel):

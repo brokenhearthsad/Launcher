@@ -6,6 +6,7 @@ stores Steam passwords, tokens or Steam Guard codes.
 """
 from __future__ import annotations
 
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -47,6 +48,15 @@ class Settings(BaseSettings):
     ws_publish_hz: float = Field(default=4.0, gt=0, le=20)
     ws_queue_size: int = Field(default=256, ge=16)
     api_rate_limit_per_minute: int = Field(default=600, ge=10)
+
+    # Disks shown on the "System" page (missing drives are reported as unavailable).
+    monitored_drives: list[str] = Field(
+        default_factory=lambda: ["C:\\", "D:\\"] if sys.platform == "win32" else ["/"]
+    )
+    # Override automatic Steam discovery (registry / default folders).
+    steam_path: Path | None = None
+    # Background monitoring can be disabled (tests, diagnostics).
+    monitoring_enabled: bool = True
 
     # Opt-in: lower the priority of the Launcher process itself (never other processes).
     lower_own_priority: bool = False

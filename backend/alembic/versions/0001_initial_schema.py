@@ -4,11 +4,12 @@ Revision ID: 0001
 Revises: 
 Create Date: 2026-11-05 11:55:43.254300
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = '0001'
 down_revision: Union[str, None] = None
